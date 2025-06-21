@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// QRCodeCanvas supprimé car plus utilisé
 import type { Vehicule, Section, Materiel } from '../models/inventaire';
 import '../App.css';
 
@@ -275,12 +276,16 @@ const InventairePanel: React.FC<Props> = ({ vehicule }) => {
           </div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', margin: '1rem 0' }}>
-          <button onClick={goPrev} disabled={sectionIdx === 0} style={{ flex: 1, marginRight: 8 }}>
-            Précédent
-          </button>
-          <button onClick={goNext} disabled={sectionIdx === etat.length - 1} style={{ flex: 1, marginLeft: 8 }}>
-            Suivant
-          </button>
+          {sectionIdx > 0 && (
+            <button onClick={goPrev} style={{ flex: 1, marginRight: 8 }}>
+              Précédent
+            </button>
+          )}
+          {sectionIdx < etat.length - 1 && (
+            <button onClick={goNext} style={{ flex: 1, marginLeft: 8 }}>
+              Suivant
+            </button>
+          )}
         </div>
         {/* Formulaire agent, observation, bouton en bas, seulement à la dernière étape */}
         {sectionIdx === etat.length - 1 && (
@@ -294,30 +299,30 @@ const InventairePanel: React.FC<Props> = ({ vehicule }) => {
             }}
             style={{ marginTop: 24 }}
           >
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontWeight: 500 }}>
+            <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <label style={{ fontWeight: 500, width: '100%' }}>
                 Nom de l'agent :
                 <input
                   type="text"
                   value={agent}
                   onChange={e => setAgent(e.target.value)}
                   required
-                  style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 4, border: '1px solid #ccc' }}
+                  style={{ marginTop: 6, width: '100%', padding: '4px 8px', borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
                 />
               </label>
             </div>
-            <div style={{ margin: '1.5rem 0 1rem 0' }}>
-              <label style={{ fontWeight: 500 }}>
+            <div style={{ margin: '1.5rem 0 1rem 0', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <label style={{ fontWeight: 500, width: '100%' }}>
                 Observations :
                 <textarea
                   value={observation}
                   onChange={e => setObservation(e.target.value)}
                   rows={3}
-                  style={{ width: '100%', marginTop: 6, borderRadius: 4, border: '1px solid #ccc', padding: 6 }}
+                  style={{ width: '100%', marginTop: 6, borderRadius: 4, border: '1px solid #ccc', padding: 6, boxSizing: 'border-box' }}
                 />
               </label>
             </div>
-            <button type="submit" className="btn-envoyer">Envoyer l'inventaire</button>
+            <button type="submit" className="btn-envoyer" style={{ display: 'block', margin: '1.2rem auto 0 auto' }}>Envoyer l'inventaire</button>
             {message && <div style={{ color: 'green', marginTop: 12 }}>{message}</div>}
           </form>
         )}

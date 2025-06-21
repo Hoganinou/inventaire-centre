@@ -67,15 +67,15 @@ body {
 }
 
 .inventaire-container {
-  max-width: 100vw;
-  margin: 0.5rem auto 0 auto;
+  max-width: 700px;
+  margin: 1.2rem auto 0 auto;
   background: linear-gradient(135deg, #e3e7fa 0%, #f7f7fa 100%);
   border-radius: 0.5rem;
   box-shadow: 0 2px 16px rgba(60,90,200,0.08);
-  padding: 0.5rem 0.2rem 1rem 0.2rem;
+  padding: 0.5rem 1.2rem 1.2rem 1.2rem;
   max-height: 98vh;
   overflow-y: auto;
-  width: 100vw;
+  width: 96vw;
   box-sizing: border-box;
 }
 .inventaire-container h2 {
@@ -258,12 +258,12 @@ label {
 .groupe-7 { background: var(--groupe-7); }
 @media (max-width: 600px) {
   .inventaire-container {
-    max-width: 100vw;
-    margin: 0.2rem auto 0 auto;
-    padding: 0.2rem 0.2rem 0.7rem 0.2rem;
+    max-width: 99vw;
+    margin: 0.5rem 2vw 0 2vw;
+    padding: 0.2rem 2vw 0.7rem 2vw;
     border-radius: 0.3rem;
+    width: 98vw;
     box-sizing: border-box;
-    width: 100vw;
   }
   .section-panel {
     padding: 0.5rem 0.2rem 0.7rem 0.2rem;
@@ -297,5 +297,13 @@ label {
   .materiel-row input[type="checkbox"] {
     width: 18px;
     height: 18px;
+  }
+}
+@media (min-width: 900px) {
+  .inventaire-container {
+    max-width: 700px;
+    margin: 2.5rem auto 0 auto;
+    padding: 1.5rem 2.5rem 2rem 2.5rem;
+    border-radius: 0.7rem;
   }
 }
