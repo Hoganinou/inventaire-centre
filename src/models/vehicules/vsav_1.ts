@@ -41,21 +41,35 @@ const vsav1: Vehicule = {
       ],
     },
     {
+      id: 'poste_conduite',
+      nom: 'Poste de conduite',
+      sousSections: [
+        {
+          id: 'controles_vehicule',
+          nom: 'Contrôles véhicule',
+          materiels: [
+            { id: 'allumage_moteur', nom: 'Allumage moteur', type: 'checkbox', fonctionne: false },
+            { id: 'voyant_tableau_bord', nom: 'Voyant tableau de bord', type: 'checkbox', estPresent: false, observation: '' },
+            { id: 'niveau_huile', nom: 'Niveau huile', type: 'select', options: ['Correct', 'Bas', 'Vide'], valeur: '' },
+            { id: 'autres_niveaux', nom: 'Autres niveaux (lave glace, liquide refroidissement...)', type: 'checkbox', fonctionne: false },
+            { id: 'essence', nom: 'Essence', type: 'select', options: ['Plein', 'Sup moitié'], valeur: '', estPresent: undefined },
+            { id: 'adblue', nom: 'AD Blue', type: 'select', options: ['Plein', 'Sup moitié', 'Aucun'], valeur: '', estPresent: undefined },
+            { id: 'radio', nom: 'Radio', type: 'checkbox', estPresent: false, fonctionne: false },
+            { id: 'klaxon', nom: 'Klaxon', type: 'checkbox', fonctionne: false },
+            { id: 'phare', nom: 'Phare', type: 'checkbox', fonctionne: false },
+            { id: 'gyrophare', nom: 'Gyrophare', type: 'checkbox', fonctionne: false },
+          ],
+        },
+      ],
+    },
+    {
       id: 'cabine',
       nom: 'Cabine',
       sousSections: [
         {
-          id: 'poste_conducteur',
-          nom: 'Poste conducteur',
+          id: 'equipements_cabine',
+          nom: 'Équipements cabine',
           materiels: [
-            { id: 'essence', nom: 'Essence', type: 'select', options: ['Plein', 'Sup moitié'], valeur: '', estPresent: undefined },
-            { id: 'adblue', nom: 'AD Blue', type: 'select', options: ['Plein', 'Sup moitié', 'Aucun'], valeur: '', estPresent: undefined },
-            { id: 'radio', nom: 'Radio', type: 'checkbox', estPresent: false, fonctionne: false },
-            { id: 'klaxon', nom: 'Klaxon', type: 'checkbox', estPresent: false, fonctionne: false },
-            { id: 'phare', nom: 'Phare', type: 'checkbox', estPresent: false, fonctionne: false },
-            { id: 'gyrophare', nom: 'Gyrophare', type: 'checkbox', estPresent: false, fonctionne: false },
-            { id: 'pneu', nom: 'État pneu', type: 'select', options: ['Correct'], valeur: '', estPresent: undefined },
-            { id: 'carrosserie', nom: 'État carrosserie', type: 'select', options: ['Correct'], valeur: '', estPresent: undefined },
             { id: 'extincteur', nom: 'Extincteur', type: 'checkbox', estPresent: false },
             { id: 'ofd', nom: 'OFD', type: 'checkbox', estPresent: false },
             { id: 'cric', nom: 'CRIC', type: 'checkbox', estPresent: false },

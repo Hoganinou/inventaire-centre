@@ -93,8 +93,19 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
     const path = [...parentPath, section.nom];
     if (section.materiels) {
       section.materiels.forEach((m) => {
-        // Si le matériel a la propriété fonctionne, on vérifie les deux. Sinon, seulement estPresent (ou valeur)
-        if (m.hasOwnProperty('fonctionne')) {
+        // Si le matériel a SEULEMENT fonctionne (sans estPresent), on vérifie seulement fonctionne
+        if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
+          if (!m.fonctionne) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: true, // Il est présent mais ne fonctionne pas
+              fonctionne: m.fonctionne ?? false,
+            });
+          }
+        }
+        // Si le matériel a les deux propriétés estPresent ET fonctionne
+        else if (m.hasOwnProperty('fonctionne') && m.hasOwnProperty('estPresent')) {
           if (!m.estPresent || !m.fonctionne) {
             defauts.push({
               chemin: path.join(' > '),
@@ -649,7 +660,31 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                     <div className={`materiel-row niveau-${sectionDepth}-materiel groupe-${idx % 8}-materiel`} key={materiel.id}>
                       <span className="materiel-name">{materiel.nom}</span>
                       <div className="controls-enhanced">
-                        {(!materiel.type || materiel.type === 'checkbox') && (
+                        {/* Logique spéciale pour voyant tableau de bord avec boutons radio */}
+                        {materiel.id === 'voyant_tableau_bord' && materiel.hasOwnProperty('estPresent') && (
+                          <div className="radio-group">
+                            <label className="control-radio">
+                              <input 
+                                type="radio" 
+                                name={`voyant_${materiel.id}_${item.materielIdx}`}
+                                checked={materiel.valeur === false} 
+                                onChange={() => path && updateMaterielValeur(path, item.materielIdx, false)} 
+                              />
+                              <span className="radio-label">RAS</span>
+                            </label>
+                            <label className="control-radio">
+                              <input 
+                                type="radio" 
+                                name={`voyant_${materiel.id}_${item.materielIdx}`}
+                                checked={materiel.valeur === true} 
+                                onChange={() => path && updateMaterielValeur(path, item.materielIdx, true)} 
+                              />
+                              <span className="radio-label">Voyant(s) allumé(s)</span>
+                            </label>
+                          </div>
+                        )}
+                        {/* Afficher "Présent" pour les autres matériels */}
+                        {(!materiel.type || materiel.type === 'checkbox') && materiel.hasOwnProperty('estPresent') && materiel.id !== 'voyant_tableau_bord' && (
                           <label className="control-checkbox">
                             <input 
                               type="checkbox" 
@@ -726,6 +761,21 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                             <span className="checkbox-label">Fonctionne</span>
                           </label>
                         )}
+                        {/* Champ observation conditionnel pour "Voyant tableau de bord" */}
+                        {materiel.id === 'voyant_tableau_bord' && materiel.valeur === true && (
+                          <div className="observation-field">
+                            <label className="observation-label">
+                              <span>Observation:</span>
+                              <textarea
+                                value={materiel.observation || ''}
+                                onChange={(e) => path && updateMaterielPhotoFields(path, item.materielIdx, { observation: e.target.value })}
+                                placeholder="Décrire les voyants allumés..."
+                                className="form-textarea-small"
+                                rows={2}
+                              />
+                            </label>
+                          </div>
+                        )}
                         {/* Indicateur visuel de statut */}
                         <div className={`status-indicator ${(() => {
                           if (materiel.type === 'quantite') {
@@ -747,6 +797,16 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                             if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return 'status-pending'; // À vérifier
                             return 'status-empty';
                           } else {
+                            // Logique spéciale pour voyant tableau de bord
+                            if (materiel.id === 'voyant_tableau_bord') {
+                              // Validé seulement si l'utilisateur a fait un choix explicite
+                              if (materiel.valeur !== undefined && materiel.valeur !== null) {
+                                return materiel.valeur ? 'status-warning' : 'status-ok'; // Warning si voyants allumés, OK si RAS
+                              }
+                              return 'status-empty'; // Pas encore vérifié
+                            }
+                            
+                            // Logique normale pour les autres matériels
                             const isPresent = materiel.valeur ?? materiel.estPresent ?? false;
                             const isFunctional = materiel.fonctionne ?? true;
                             if (isPresent && isFunctional) return 'status-ok';
@@ -768,6 +828,16 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                             } else if (materiel.type === 'photo') {
                               return (materiel.photos ?? []).length > 0 ? '📷' : '○';
                             } else {
+                              // Logique spéciale pour voyant tableau de bord  
+                              if (materiel.id === 'voyant_tableau_bord') {
+                                // Affiché seulement si l'utilisateur a fait un choix explicite
+                                if (materiel.valeur !== undefined && materiel.valeur !== null) {
+                                  return materiel.valeur ? '⚠️' : '✓'; // Warning si voyants allumés, OK si RAS
+                                }
+                                return '○'; // Pas encore vérifié
+                              }
+                              
+                              // Logique normale pour les autres matériels
                               const isPresent = materiel.valeur ?? materiel.estPresent ?? false;
                               const isFunctional = materiel.fonctionne ?? true;
                               if (isPresent && isFunctional) return '✓';

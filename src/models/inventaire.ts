@@ -11,6 +11,7 @@ export interface Materiel {
   estPresent?: boolean; // Pour compatibilité avec anciens matériels
   fonctionne?: boolean; // Pour compatibilité avec anciens matériels
   remarque?: string;
+  observation?: string; // Champ texte libre pour observations spécifiques
   photos?: string[]; // URLs/base64 des photos prises
   photoRequise?: boolean; // Indique si une photo est requise pour cet élément
   bonEtat?: boolean; // Indique que l'élément est en bon état (pas besoin de photo)
