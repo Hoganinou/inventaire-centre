@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { Vehicule, Section, Materiel } from '../models/inventaire';
 import { InventaireService } from '../firebase/inventaire-service';
 import type { InventaireRecord } from '../models/inventaire-record';
+import PhotoInspectionItem from './PhotoInspectionItem';
 import '../App.css';
 
 interface Props {
@@ -189,6 +190,49 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
   const materielsList = flattenMateriels(currentSection);
   const groupedMateriels = groupMaterielsBySousPartie(materielsList);
 
+  // Charger les photos du dernier inventaire au démarrage
+  useEffect(() => {
+    const chargerPhotosAnciennes = async () => {
+      try {
+        console.log('🔍 Chargement des photos précédentes pour', vehicule.id);
+        const photosParMateriel = await InventaireService.getDernieresPhotos(vehicule.id);
+        
+        if (Object.keys(photosParMateriel).length > 0) {
+          console.log('📷 Photos trouvées, mise à jour de l\'état...');
+          
+          setEtat(prev => {
+            const copy = JSON.parse(JSON.stringify(prev));
+            
+            // Fonction récursive pour mettre à jour les photos dans les sections
+            const mettreAJourPhotos = (section: any) => {
+              if (section.materiels) {
+                section.materiels.forEach((materiel: any) => {
+                  if (photosParMateriel[materiel.id]) {
+                    materiel.photosAnciennnes = photosParMateriel[materiel.id];
+                    console.log(`📷 Photos assignées à ${materiel.nom}:`, materiel.photosAnciennnes);
+                  }
+                });
+              }
+              
+              if (section.sousSections) {
+                section.sousSections.forEach((sousSection: any) => {
+                  mettreAJourPhotos(sousSection);
+                });
+              }
+            };
+
+            copy.forEach(mettreAJourPhotos);
+            return copy;
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ Erreur lors du chargement des photos précédentes:', error);
+      }
+    };
+
+    chargerPhotosAnciennes();
+  }, [vehicule.id]); // Se déclenche quand on change de véhicule
+
   const updateSection = (path: string, materielIdx: number, field: 'estPresent' | 'fonctionne') => {
     setEtat(prev => {
       const pathArr = path.split('.').filter(Boolean);
@@ -213,6 +257,20 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
         if (typeof valeur === 'boolean') {
           section.materiels[materielIdx].estPresent = valeur;
         }
+      }
+      return copy;
+    });
+  };
+
+  // Fonction spécialisée pour mettre à jour plusieurs champs d'un matériel photo
+  const updateMaterielPhotoFields = (path: string, materielIdx: number, updates: Partial<Materiel>) => {
+    setEtat(prev => {
+      const pathArr = path.split('.').filter(Boolean);
+      const copy = JSON.parse(JSON.stringify(prev));
+      let section = findSectionByPath(copy, pathArr);
+      if (section && section.materiels) {
+        // Mettre à jour tous les champs fournis
+        section.materiels[materielIdx] = { ...section.materiels[materielIdx], ...updates };
       }
       return copy;
     });
@@ -245,6 +303,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
         agent: agent || 'Agent non spécifié',
         dateInventaire: new Date(),
         defauts: defauts,
+        // Inclure les sections complètes pour sauvegarder les photos
+        sections: JSON.parse(JSON.stringify(etat)),
         observation: observation || '',
         materielValides: getCompletedMaterials(),
         totalMateriels: getTotalMaterials(),
@@ -255,6 +315,24 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
       inventaireRecord.progressPercent = inventaireRecord.totalMateriels > 0 
         ? Math.round((inventaireRecord.materielValides / inventaireRecord.totalMateriels) * 100) 
         : 0;
+
+      // Debug: compter les photos avant sauvegarde
+      let totalPhotos = 0;
+      const compterPhotos = (section: Section) => {
+        if (section.materiels) {
+          section.materiels.forEach(materiel => {
+            if (materiel.photos && materiel.photos.length > 0) {
+              totalPhotos += materiel.photos.length;
+              console.log(`📷 Sauvegarde: ${materiel.nom} - ${materiel.photos.length} photo(s)`);
+            }
+          });
+        }
+        if (section.sousSections) {
+          section.sousSections.forEach(compterPhotos);
+        }
+      };
+      inventaireRecord.sections?.forEach(compterPhotos);
+      console.log(`💾 Sauvegarde de l'inventaire avec ${totalPhotos} photo(s) au total`);
 
       await InventaireService.saveInventaire(inventaireRecord);
       
@@ -335,6 +413,10 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
           return isVerified && quantiteReelle > 0; // Vérifié avec une quantité
         }
         if (m.type === 'select') return (m.valeur ?? '') !== '';
+        if (m.type === 'photo') {
+          // Pour les photos : soit bon état, soit réparé, soit photos présentes
+          return m.bonEtat || m.repare || (m.photos && m.photos.length > 0);
+        }
         return m.valeur ?? m.estPresent ?? false;
       }).length;
     }, 0);
@@ -356,6 +438,10 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
         return isVerified && quantiteReelle > 0;
       }
       if (m.type === 'select') return (m.valeur ?? '') !== '';
+      if (m.type === 'photo') {
+        // Pour les photos : soit bon état, soit réparé, soit photos présentes
+        return m.bonEtat || m.repare || (m.photos && m.photos.length > 0);
+      }
       return m.valeur ?? m.estPresent ?? false;
     });
   };
@@ -375,6 +461,10 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
         return isVerified && quantiteReelle > 0;
       }
       if (m.type === 'select') return (m.valeur ?? '') !== '';
+      if (m.type === 'photo') {
+        // Pour les photos : soit bon état, soit réparé, soit photos présentes
+        return m.bonEtat || m.repare || (m.photos && m.photos.length > 0);
+      }
       return m.valeur ?? m.estPresent ?? false;
     }).length;
     
@@ -556,7 +646,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                   const sectionDepth = getSectionDepth(etat, item.sectionRef);
                   // Affichage dynamique selon le type de matériel
                   return (
-                    <div className={`materiel-row niveau-${sectionDepth}-materiel`} key={materiel.id}>
+                    <div className={`materiel-row niveau-${sectionDepth}-materiel groupe-${idx % 8}-materiel`} key={materiel.id}>
                       <span className="materiel-name">{materiel.nom}</span>
                       <div className="controls-enhanced">
                         {(!materiel.type || materiel.type === 'checkbox') && (
@@ -615,6 +705,16 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                             </select>
                           </label>
                         )}
+                        {materiel.type === 'photo' && (
+                          <PhotoInspectionItem
+                            materiel={materiel}
+                            onUpdate={(updates) => {
+                              if (path) {
+                                updateMaterielPhotoFields(path, item.materielIdx, updates);
+                              }
+                            }}
+                          />
+                        )}
                         {/* Pour compatibilité, on affiche "Fonctionne" seulement si la propriété existe dans le matériel */}
                         {((!materiel.type || materiel.type === 'checkbox') && materiel.hasOwnProperty('fonctionne')) && (
                           <label className="control-checkbox">
@@ -639,6 +739,13 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                             return 'status-empty';
                           } else if (materiel.type === 'select') {
                             return (materiel.valeur ?? '') !== '' ? 'status-ok' : 'status-empty';
+                          } else if (materiel.type === 'photo') {
+                            // Nouveau système pour les photos
+                            if (materiel.bonEtat) return 'status-ok';
+                            if (materiel.repare) return 'status-ok';
+                            if (materiel.photos && materiel.photos.length > 0) return 'status-warning'; // Problème documenté
+                            if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return 'status-pending'; // À vérifier
+                            return 'status-empty';
                           } else {
                             const isPresent = materiel.valeur ?? materiel.estPresent ?? false;
                             const isFunctional = materiel.fonctionne ?? true;
@@ -658,6 +765,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete }) =>
                               return '○';
                             } else if (materiel.type === 'select') {
                               return (materiel.valeur ?? '') !== '' ? '✓' : '○';
+                            } else if (materiel.type === 'photo') {
+                              return (materiel.photos ?? []).length > 0 ? '📷' : '○';
                             } else {
                               const isPresent = materiel.valeur ?? materiel.estPresent ?? false;
                               const isFunctional = materiel.fonctionne ?? true;

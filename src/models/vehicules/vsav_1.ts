@@ -5,6 +5,42 @@ const vsav1: Vehicule = {
   nom: 'VSAV 1',
   sections: [
     {
+      id: 'exterieur',
+      nom: 'Extérieur',
+      sousSections: [
+        {
+          id: 'carrosserie_inspection',
+          nom: 'Inspection carrosserie (impact et rayure)',
+          materiels: [
+            { id: 'face_avant', nom: 'Face avant', type: 'photo', bonEtat: false },
+            { id: 'face_arriere', nom: 'Face arrière', type: 'photo', bonEtat: false },
+            { id: 'cote_gauche', nom: 'Côté gauche', type: 'photo', bonEtat: false },
+            { id: 'cote_droit', nom: 'Côté droit', type: 'photo', bonEtat: false },
+          ],
+        },
+        {
+          id: 'pneumatiques_inspection',
+          nom: 'Inspection pneumatique (usure - défaut)',
+          materiels: [
+            { id: 'pneu_av_gauche', nom: 'Pneu AV gauche', type: 'photo', bonEtat: false },
+            { id: 'pneu_av_droit', nom: 'Pneu AV droit', type: 'photo', bonEtat: false },
+            { id: 'pneu_ar_gauche', nom: 'Pneu AR gauche', type: 'photo', bonEtat: false },
+            { id: 'pneu_ar_droit', nom: 'Pneu AR droit', type: 'photo', bonEtat: false },
+          ],
+        },
+        {
+          id: 'autres_defauts',
+          nom: 'Autres défauts extérieur',
+          materiels: [
+            { id: 'feux', nom: 'Feux', type: 'photo', bonEtat: false },
+            { id: 'retroviseurs', nom: 'Rétroviseurs', type: 'photo', bonEtat: false },
+            { id: 'gyrophare_ext', nom: 'Gyrophare', type: 'photo', bonEtat: false },
+            { id: 'autres', nom: 'Autres', type: 'photo', bonEtat: false },
+          ],
+        },
+      ],
+    },
+    {
       id: 'cabine',
       nom: 'Cabine',
       sousSections: [

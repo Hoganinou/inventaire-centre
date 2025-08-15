@@ -7,13 +7,53 @@ import type { Vehicule } from '../models/inventaire';
 interface Props {
   vehicule: Vehicule;
   onStartInventaire: () => void;
+  onReturnHome?: () => void;
 }
 
-const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire }) => {
+const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome }) => {
   const [summary, setSummary] = useState<InventaireSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedInventaire, setSelectedInventaire] = useState<InventaireRecord | null>(null);
+
+  // Fonction pour extraire les photos de tous les matériels des sections
+  const extrairePhotosMateriels = (sections?: any[]): { [materielId: string]: { photos: string[], nom: string } } => {
+    const photosParMateriel: { [materielId: string]: { photos: string[], nom: string } } = {};
+    
+    if (!sections) return photosParMateriel;
+
+    const parcourirSection = (section: any) => {
+      if (section.materiels) {
+        section.materiels.forEach((materiel: any) => {
+          if (materiel.photos && materiel.photos.length > 0) {
+            photosParMateriel[materiel.id] = {
+              photos: materiel.photos,
+              nom: materiel.nom
+            };
+          }
+        });
+      }
+      
+      if (section.sousSections) {
+        section.sousSections.forEach((sousSection: any) => {
+          parcourirSection(sousSection);
+        });
+      }
+    };
+
+    sections.forEach(parcourirSection);
+    return photosParMateriel;
+  };
+
+  // Fonction pour trouver les photos d'un matériel par son nom
+  const trouverPhotosParNom = (nomMateriel: string, sections?: any[]): string[] => {
+    const photosMateriels = extrairePhotosMateriels(sections);
+    for (const [, data] of Object.entries(photosMateriels)) {
+      if (data.nom === nomMateriel) {
+        return data.photos;
+      }
+    }
+    return [];
+  };
 
   useEffect(() => {
     const loadSummary = async () => {
@@ -24,7 +64,7 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire }) => {
       } catch (error) {
         console.warn('Firestore pas encore configuré:', error);
         // Affichage en mode démo si Firestore n'est pas configuré
-        setError('Base de données non configurée - Mode démo');
+        console.info('Base de données non configurée - Mode démo');
       } finally {
         setLoading(false);
       }
@@ -97,18 +137,28 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire }) => {
             <div className="recap-defauts">
               <h4>🔍 Défauts signalés :</h4>
               <div className="defauts-list">
-                {summary.dernierInventaire.defauts.map((defaut) => (
-                  <div key={`${defaut.chemin}-${defaut.nom}`} className="defaut-item">
-                    <div className="defaut-icon">
-                      {defaut.present ? (defaut.fonctionne === false ? '🔧' : '❓') : '❌'}
+                {summary.dernierInventaire.defauts.map((defaut) => {
+                  const photos = summary.dernierInventaire ? trouverPhotosParNom(defaut.nom, summary.dernierInventaire.sections) : [];
+                  return (
+                    <div key={`${defaut.chemin}-${defaut.nom}`} className="defaut-item">
+                      <div className="defaut-icon">
+                        {defaut.present ? (defaut.fonctionne === false ? '🔧' : '❓') : '❌'}
+                      </div>
+                      <div className="defaut-details">
+                        <div className="defaut-path">{defaut.chemin}</div>
+                        <div className="defaut-name">{defaut.nom}</div>
+                        {defaut.details && <div className="defaut-extra">{defaut.details}</div>}
+                        
+                        {/* Aperçu photos */}
+                        {photos.length > 0 && (
+                          <div className="defaut-photos-preview">
+                            📷 {photos.length} photo{photos.length > 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="defaut-details">
-                      <div className="defaut-path">{defaut.chemin}</div>
-                      <div className="defaut-name">{defaut.nom}</div>
-                      {defaut.details && <div className="defaut-extra">{defaut.details}</div>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -159,6 +209,16 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire }) => {
 
       {/* Actions */}
       <div className="recap-actions">
+        {onReturnHome && (
+          <button 
+            className="btn-return-home"
+            onClick={onReturnHome}
+          >
+            <span className="btn-icon">🏠</span>
+            <span className="btn-text">Retour accueil</span>
+          </button>
+        )}
+        
         <button 
           className="btn-start-inventaire"
           onClick={onStartInventaire}

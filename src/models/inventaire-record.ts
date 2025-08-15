@@ -1,3 +1,5 @@
+import type { Section } from './inventaire';
+
 export interface InventaireRecord {
   id?: string;
   vehiculeId: string;
@@ -11,6 +13,8 @@ export interface InventaireRecord {
     fonctionne?: boolean;
     details?: string;
   }>;
+  // Ajout des sections complètes pour sauvegarder les photos
+  sections?: Section[];
   observation: string;
   totalMateriels: number;
   materielValides: number;

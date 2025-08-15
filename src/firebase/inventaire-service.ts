@@ -102,4 +102,50 @@ export class InventaireService {
       return [];
     }
   }
+
+  // Récupérer les photos du dernier inventaire pour un véhicule
+  static async getDernieresPhotos(vehiculeId: string): Promise<{ [materielId: string]: string[] }> {
+    try {
+      const q = query(
+        collection(db, INVENTAIRES_COLLECTION),
+        where('vehiculeId', '==', vehiculeId),
+        orderBy('dateInventaire', 'desc'),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(q);
+      let photosParMateriel: { [materielId: string]: string[] } = {};
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const sections = data.sections || [];
+        
+        // Parcourir toutes les sections et sous-sections pour trouver les photos
+        const extrairePhotos = (section: any) => {
+          if (section.materiels) {
+            section.materiels.forEach((materiel: any) => {
+              if (materiel.photos && materiel.photos.length > 0) {
+                photosParMateriel[materiel.id] = materiel.photos;
+              }
+            });
+          }
+          
+          if (section.sousSections) {
+            section.sousSections.forEach((sousSection: any) => {
+              extrairePhotos(sousSection);
+            });
+          }
+        };
+
+        sections.forEach(extrairePhotos);
+      });
+
+      console.log('📷 Photos récupérées:', photosParMateriel);
+      return photosParMateriel;
+      
+    } catch (error) {
+      console.error('❌ Erreur récupération photos:', error);
+      return {};
+    }
+  }
 }
