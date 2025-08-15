@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import './App.css'
 import InventairePanel from './components/InventairePanel'
+import RecapPanel from './components/RecapPanel'
+import InventaireComplete from './components/InventaireComplete'
 import { vehicules } from './models/vehicules/index'
 
 // Fonction utilitaire pour lire le paramètre d'URL (insensible à la casse)
@@ -20,14 +23,42 @@ function findVehicule(vehiculeId: string | null) {
 function App() {
   const vehiculeId = getVehiculeIdFromUrl();
   const { vehicule, notFound } = findVehicule(vehiculeId);
+  
+  // État pour gérer le workflow : 'recap', 'inventaire' ou 'termine'
+  const [currentView, setCurrentView] = useState<'recap' | 'inventaire' | 'termine'>('recap');
+
+  const handleStartInventaire = () => {
+    setCurrentView('inventaire');
+  };
+
+  const handleInventaireComplete = () => {
+    setCurrentView('termine');
+  };
 
   return (
     <div>
-      <div style={{color: 'blue', textAlign: 'center'}}>DEBUG: build du 21/06/2025</div>
+      <div style={{color: 'blue', textAlign: 'center'}}>page test : v1-2</div>
       {notFound && (
         <div style={{color: 'red', textAlign: 'center', margin: '1rem'}}>Véhicule non trouvé, affichage du véhicule par défaut.</div>
       )}
-      <InventairePanel vehicule={vehicule} />
+      
+      {currentView === 'recap' && (
+        <RecapPanel 
+          vehicule={vehicule} 
+          onStartInventaire={handleStartInventaire} 
+        />
+      )}
+      
+      {currentView === 'inventaire' && (
+        <InventairePanel 
+          vehicule={vehicule} 
+          onInventaireComplete={handleInventaireComplete}
+        />
+      )}
+      
+      {currentView === 'termine' && (
+        <InventaireComplete vehicule={vehicule} />
+      )}
     </div>
   )
 }

@@ -6,7 +6,8 @@ export interface Materiel {
   // Type de contrôle : 'checkbox' (présent/fonctionne), 'quantite' (nombre), 'select' (liste d'options), etc.
   type?: 'checkbox' | 'quantite' | 'select';
   options?: string[]; // Pour les listes déroulantes (ex: plein/moitié/vide)
-  valeur?: any; // Valeur saisie (boolean, number, string...)
+  valeur?: any; // Valeur saisie (boolean, number, string...) ou quantité attendue pour type 'quantite'
+  quantiteReelle?: number; // Quantité réellement trouvée lors du contrôle (pour type 'quantite')
   estPresent?: boolean; // Pour compatibilité avec anciens matériels
   fonctionne?: boolean; // Pour compatibilité avec anciens matériels
   remarque?: string;
