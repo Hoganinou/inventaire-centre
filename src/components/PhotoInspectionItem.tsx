@@ -6,9 +6,10 @@ import type { Materiel } from '../models/inventaire';
 interface PhotoInspectionItemProps {
   materiel: Materiel;
   onUpdate: (updates: Partial<Materiel>) => void;
+  isRecapMode?: boolean; // Nouveau prop pour le mode récap
 }
 
-const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onUpdate }) => {
+const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onUpdate, isRecapMode = false }) => {
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
   // État pour savoir si un problème a été explicitement signalé
   const [problemeSignale, setProblemeSignale] = useState(false);
@@ -16,6 +17,9 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string>('');
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
+  // État pour la sélection des photos réparées
+  const [showPhotoSelection, setShowPhotoSelection] = useState(false);
+  const [selectedPhotosRepaired, setSelectedPhotosRepaired] = useState<number[]>([]);
   
   // Charger les photos anciennes depuis l'inventaire précédent (simulation pour l'instant)
   useEffect(() => {
@@ -44,6 +48,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
     onUpdate({
       bonEtat,
       repare: false,
+      pasDeChangement: false,
       photos: bonEtat ? [] : materiel.photos // Vider les photos si bon état
     });
     setProblemeSignale(false); // Reset l'état problème
@@ -53,27 +58,81 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleRepareChange = (repare: boolean) => {
-    console.log('🔧 Réparé sélectionné pour:', materiel.nom);
+    if (repare && materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) {
+      // Si on marque comme réparé et qu'il y a des photos anciennes, montrer la sélection
+      console.log('🔧 Affichage sélection photos réparées pour:', materiel.nom);
+      setShowPhotoSelection(true);
+      setSelectedPhotosRepaired([]); // Reset la sélection
+    } else {
+      // Logique normale si pas de photos anciennes ou si on démarque "réparé"
+      console.log('🔧 Réparé sélectionné pour:', materiel.nom);
+      onUpdate({
+        repare,
+        bonEtat: false,
+        pasDeChangement: false,
+        // IMPORTANT: On garde les photos quand on marque "réparé" pour garder la trace du problème
+        // photos: repare ? [] : materiel.photos // Ancien comportement qui supprimait les photos
+      });
+      setProblemeSignale(false); // Reset l'état problème
+      if (repare) {
+        setShowPhotoCapture(false); // Fermer l'interface photo si réparé
+      }
+    }
+  };
+
+  const handlePasDeChangement = () => {
+    console.log('✓ Pas de changement pour:', materiel.nom);
     onUpdate({
-      repare,
-      bonEtat: false,
-      // IMPORTANT: On garde les photos quand on marque "réparé" pour garder la trace du problème
-      // photos: repare ? [] : materiel.photos // Ancien comportement qui supprimait les photos
+      bonEtat: false, // Pas bon état car le défaut persiste
+      repare: false,  // Pas réparé non plus
+      pasDeChangement: true, // Nouvel état pour indiquer "pas de changement" - le défaut persiste
+      photos: [] // Vider les nouvelles photos car on garde les anciennes comme référence
     });
     setProblemeSignale(false); // Reset l'état problème
-    if (repare) {
-      setShowPhotoCapture(false); // Fermer l'interface photo si réparé
-    }
+    setShowPhotoCapture(false); // Fermer l'interface photo
+  };
+
+  const handlePhotoSelectionToggle = (photoIndex: number) => {
+    setSelectedPhotosRepaired(prev => {
+      if (prev.includes(photoIndex)) {
+        return prev.filter(index => index !== photoIndex);
+      } else {
+        return [...prev, photoIndex];
+      }
+    });
+  };
+
+  const handleConfirmPhotoSelection = () => {
+    console.log('🔧 Validation réparation avec photos sélectionnées:', selectedPhotosRepaired);
+    
+    // Mettre à jour le matériel avec les informations de réparation
+    onUpdate({
+      repare: true,
+      bonEtat: false,
+      pasDeChangement: false,
+      photosReparees: selectedPhotosRepaired, // Nouvelle propriété pour stocker les indices des photos réparées
+    });
+    
+    setProblemeSignale(false);
+    setShowPhotoCapture(false);
+    setShowPhotoSelection(false);
+    setSelectedPhotosRepaired([]);
+  };
+
+  const handleCancelPhotoSelection = () => {
+    setShowPhotoSelection(false);
+    setSelectedPhotosRepaired([]);
   };
 
   const handleSignalerProbleme = () => {
     console.log('🚨 Signaler un problème pour:', materiel.nom);
     onUpdate({
       bonEtat: false,
-      repare: false
+      repare: false,
+      pasDeChangement: false
     });
     setProblemeSignale(true); // Marquer qu'un problème a été signalé
-    setShowPhotoCapture(false); // Ne pas ouvrir automatiquement la photo
+    setShowPhotoCapture(true); // Ouvrir directement l'interface photo
   };
 
   const handleOpenPhotoCapture = () => {
@@ -110,7 +169,8 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
     onUpdate({
       photos,
       bonEtat: false,
-      repare: false
+      repare: false,
+      pasDeChangement: false
     });
   };
 
@@ -121,6 +181,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
       if (materiel.photos && materiel.photos.length > 0) return 'repare-avec-photos';
       return 'repare';
     }
+    if (materiel.pasDeChangement) return 'pas-de-changement';
     if (problemeSignale && materiel.photos && materiel.photos.length > 0) return 'avec-photos';
     if (problemeSignale) return 'probleme-signale';
     if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return 'photos-anciennes';
@@ -135,6 +196,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
       }
       return '🔧 Réparé';
     }
+    if (materiel.pasDeChangement) return '⚠️ Défaut persistant';
     if (problemeSignale && materiel.photos && materiel.photos.length > 0) return `📷 ${materiel.photos.length} photo(s)`;
     if (problemeSignale) return '⚠️ Problème signalé';
     if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return '📅 Photos précédentes';
@@ -161,12 +223,21 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
         </button>
 
         {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && (
-          <button
-            className={`control-button ${materiel.repare ? 'active' : ''}`}
-            onClick={() => handleRepareChange(!materiel.repare)}
-          >
-            🔧 Problème réparé
-          </button>
+          <>
+            <button
+              className={`control-button ${materiel.repare ? 'active' : ''}`}
+              onClick={() => handleRepareChange(!materiel.repare)}
+            >
+              🔧 Problème réparé
+            </button>
+            
+            <button
+              className={`control-button ${materiel.pasDeChangement ? 'active' : ''}`}
+              onClick={handlePasDeChangement}
+            >
+              ⚠️ Défaut persistant
+            </button>
+          </>
         )}
 
         <button
@@ -177,10 +248,55 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
         </button>
       </div>
 
+      {/* Interface de sélection des photos réparées */}
+      {showPhotoSelection && materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && (
+        <div className="photo-selection-section">
+          <h5>🔧 Sélectionnez les photos qui correspondent au problème réparé :</h5>
+          <div className="photo-grid">
+            {materiel.photosAnciennnes.map((photo, index) => (
+              <div 
+                key={index} 
+                className={`photo-item ancien selectable ${selectedPhotosRepaired.includes(index) ? 'selected' : ''}`}
+                onClick={() => handlePhotoSelectionToggle(index)}
+                title="Cliquer pour sélectionner"
+              >
+                <img src={photo} alt={`Photo ancienne ${index + 1}`} />
+                <div className="photo-overlay">
+                  {selectedPhotosRepaired.includes(index) ? '✓' : ''} Précédent {index + 1}
+                </div>
+                <div className={`selection-indicator ${selectedPhotosRepaired.includes(index) ? 'selected' : ''}`}>
+                  {selectedPhotosRepaired.includes(index) ? '✓' : '○'}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="photo-selection-controls">
+            <button 
+              onClick={handleConfirmPhotoSelection}
+              className="btn-confirm-selection"
+              disabled={selectedPhotosRepaired.length === 0}
+            >
+              ✓ Confirmer la réparation ({selectedPhotosRepaired.length} photo(s) sélectionnée(s))
+            </button>
+            <button 
+              onClick={handleCancelPhotoSelection}
+              className="btn-cancel-selection"
+            >
+              ✕ Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Afficher les photos anciennes si elles existent */}
       {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && !materiel.repare && (
         <div className="photos-anciennes">
-          <h5>📅 Photos de l'inventaire précédent :</h5>
+          <h5>
+            {materiel.pasDeChangement 
+              ? '⚠️ Photos du défaut (toujours d\'actualité) :' 
+              : '📅 Photos de l\'inventaire précédent :'
+            }
+          </h5>
           <div className="photo-grid">
             {materiel.photosAnciennnes.map((photo, index) => (
               <div 
@@ -197,6 +313,56 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
         </div>
       )}
 
+      {/* Afficher les photos avec indication de réparation */}
+      {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && materiel.repare && materiel.photosReparees && (
+        <div className="photos-reparees">
+          <h5>🔧 Photos du problème réparé :</h5>
+          <div className="photo-grid">
+            {materiel.photosAnciennnes.map((photo, index) => {
+              const isRepaired = materiel.photosReparees?.includes(index) || false;
+              if (!isRepaired) return null; // Ne montrer que les photos réparées
+              
+              return (
+                <div 
+                  key={index} 
+                  className="photo-item ancien repaire clickable"
+                  onClick={() => handleOpenPhotoModal(photo, index)}
+                  title="Photo du problème réparé"
+                >
+                  <img src={photo} alt={`Photo réparée ${index + 1}`} />
+                  <div className="photo-overlay">✅ Réparé {index + 1}</div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Afficher les autres photos non réparées séparément */}
+          {materiel.photosAnciennnes.some((_, index) => !materiel.photosReparees?.includes(index)) && (
+            <>
+              <h6 style={{marginTop: '15px', color: '#666'}}>📅 Autres photos de l'inventaire précédent :</h6>
+              <div className="photo-grid">
+                {materiel.photosAnciennnes.map((photo, index) => {
+                  const isRepaired = materiel.photosReparees?.includes(index) || false;
+                  if (isRepaired) return null; // Ne montrer que les photos non réparées
+                  
+                  return (
+                    <div 
+                      key={index} 
+                      className="photo-item ancien clickable"
+                      onClick={() => handleOpenPhotoModal(photo, index)}
+                      title="Cliquer pour agrandir"
+                    >
+                      <img src={photo} alt={`Photo ancienne ${index + 1}`} />
+                      <div className="photo-overlay">Précédent {index + 1}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Interface de capture de photos */}
       {showPhotoCapture && (
         <div className="photo-capture-section">
@@ -204,6 +370,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
           <PhotoCapture
             materiel={materiel}
             onPhotoCapture={handlePhotosUpdate}
+            isRecapMode={isRecapMode}
           />
           <div className="photo-capture-controls">
             <button 
@@ -216,23 +383,21 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
         </div>
       )}
 
-      {/* Afficher la section de documentation selon l'état */}
-      {(problemeSignale || (materiel.photos && materiel.photos.length > 0)) && (
+      {/* Afficher la section de documentation seulement s'il y a des photos */}
+      {(materiel.photos && materiel.photos.length > 0) && (
         <div className="photos-nouvelles">
           <div className="photos-header">
             <h5>📷 
-              {materiel.repare && materiel.photos && materiel.photos.length > 0 
+              {materiel.repare 
                 ? `Preuve de réparation (${materiel.photos.length} photo(s))` 
-                : materiel.photos && materiel.photos.length > 0 
-                ? `Photos actuelles (${materiel.photos.length})` 
-                : 'Documenter le problème'} :
+                : `Photos actuelles (${materiel.photos.length})`} :
             </h5>
             {!showPhotoCapture && !materiel.repare && (
               <button 
                 onClick={handleOpenPhotoCapture}
                 className="btn-add-photos"
               >
-                ➕ {materiel.photos && materiel.photos.length > 0 ? 'Ajouter des photos' : 'Prendre des photos'}
+                ➕ Ajouter des photos
               </button>
             )}
           </div>

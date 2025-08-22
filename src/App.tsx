@@ -57,7 +57,6 @@ function App() {
 
   return (
     <div>
-      <div style={{color: 'blue', textAlign: 'center'}}>page test : v2.0</div>
       {notFound && currentView !== 'home' && (
         <div style={{color: 'red', textAlign: 'center', margin: '1rem'}}>Véhicule non trouvé, affichage du véhicule par défaut.</div>
       )}
@@ -78,6 +77,7 @@ function App() {
         <InventairePanel 
           vehicule={selectedVehicule} 
           onInventaireComplete={handleInventaireComplete}
+          onReturnHome={handleReturnHome}
         />
       )}
       

@@ -23,7 +23,7 @@ export class InventaireService {
         dateInventaire: Timestamp.fromDate(inventaire.dateInventaire)
       });
       
-      console.log('✅ Inventaire sauvegardé avec ID:', docRef.id);
+
       return docRef.id;
     } catch (error) {
       console.error('❌ Erreur sauvegarde inventaire:', error);
@@ -72,6 +72,37 @@ export class InventaireService {
         historique: [],
         nombreDefauts: 0
       };
+    }
+  }
+
+  // Récupérer uniquement le dernier inventaire d'un véhicule
+  static async getDernierInventaire(vehiculeId: string): Promise<InventaireRecord | null> {
+    try {
+      const q = query(
+        collection(db, INVENTAIRES_COLLECTION),
+        where('vehiculeId', '==', vehiculeId),
+        orderBy('dateInventaire', 'desc'),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return null;
+      }
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      
+      return {
+        id: doc.id,
+        ...data,
+        dateInventaire: data.dateInventaire.toDate()
+      } as InventaireRecord;
+
+    } catch (error) {
+      console.error('❌ Erreur récupération dernier inventaire:', error);
+      return null;
     }
   }
 
@@ -140,7 +171,7 @@ export class InventaireService {
         sections.forEach(extrairePhotos);
       });
 
-      console.log('📷 Photos récupérées:', photosParMateriel);
+
       return photosParMateriel;
       
     } catch (error) {

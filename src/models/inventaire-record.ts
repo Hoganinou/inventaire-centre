@@ -5,6 +5,8 @@ export interface InventaireRecord {
   vehiculeId: string;
   vehiculeName: string;
   agent: string;
+  agentId?: string;    // ID de l'utilisateur authentifié
+  agentRole?: string;  // Rôle de l'utilisateur authentifié
   dateInventaire: Date;
   defauts: Array<{
     chemin: string;

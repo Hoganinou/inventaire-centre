@@ -75,7 +75,7 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule }) => {
         </div>
 
         <div className="version-info">
-          <span>Version 2.0.0</span>
+          <span>Version 2.1</span>
         </div>
       </div>
     </div>

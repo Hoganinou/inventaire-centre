@@ -55,6 +55,49 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
     return [];
   };
 
+  // Fonction pour trouver un matériel et sa section par nom
+  const trouverMaterielParNom = (nomMateriel: string, sections?: any[]): { materiel: any, section: any } | null => {
+    if (!sections) return null;
+
+    const parcourirSection = (section: any): { materiel: any, section: any } | null => {
+      if (section.materiels) {
+        const materiel = section.materiels.find((m: any) => m.nom === nomMateriel);
+        if (materiel) {
+          return { 
+            materiel, 
+            section: {
+              ...section,
+              materiels: [materiel] // Ne garder que ce matériel dans la section
+            }
+          };
+        }
+      }
+      
+      if (section.sousSections) {
+        for (const sousSection of section.sousSections) {
+          const result = parcourirSection(sousSection);
+          if (result) {
+            return {
+              materiel: result.materiel,
+              section: {
+                ...section,
+                materiels: [],
+                sousSections: [result.section]
+              }
+            };
+          }
+        }
+      }
+      return null;
+    };
+
+    for (const section of sections) {
+      const result = parcourirSection(section);
+      if (result) return result;
+    }
+    return null;
+  };
+
   useEffect(() => {
     const loadSummary = async () => {
       try {
@@ -115,23 +158,6 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
             </div>
           </div>
 
-          {/* Progression */}
-          <div className="recap-progress">
-            <div className="progress-header">
-              <span>Progression du dernier inventaire</span>
-              <span>{summary.dernierInventaire.progressPercent}%</span>
-            </div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${summary.dernierInventaire.progressPercent}%` }}
-              ></div>
-            </div>
-            <div className="progress-details">
-              {summary.dernierInventaire.materielValides}/{summary.dernierInventaire.totalMateriels} matériels vérifiés
-            </div>
-          </div>
-
           {/* Défauts détaillés */}
           {summary.nombreDefauts > 0 && (
             <div className="recap-defauts">
@@ -140,9 +166,25 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
                 {summary.dernierInventaire.defauts.map((defaut) => {
                   const photos = summary.dernierInventaire ? trouverPhotosParNom(defaut.nom, summary.dernierInventaire.sections) : [];
                   return (
-                    <div key={`${defaut.chemin}-${defaut.nom}`} className="defaut-item">
+                    <div 
+                      key={`${defaut.chemin}-${defaut.nom}`} 
+                      className="defaut-item defaut-clickable"
+                      onClick={() => {
+                        // Trouver le matériel correspondant dans les sections pour afficher ses détails
+                        const materielDetails = trouverMaterielParNom(defaut.nom, summary.dernierInventaire?.sections);
+                        if (materielDetails) {
+                          // Créer un inventaire temporaire avec juste ce matériel pour la modal
+                          const inventaireTemp = {
+                            ...summary.dernierInventaire!,
+                            sections: [materielDetails.section]
+                          };
+                          setSelectedInventaire(inventaireTemp);
+                        }
+                      }}
+                      title="Cliquer pour voir les détails"
+                    >
                       <div className="defaut-icon">
-                        {defaut.present ? (defaut.fonctionne === false ? '🔧' : '❓') : '❌'}
+                        {defaut.present ? (defaut.fonctionne === false ? '🔧' : '📷') : '❌'}
                       </div>
                       <div className="defaut-details">
                         <div className="defaut-path">{defaut.chemin}</div>

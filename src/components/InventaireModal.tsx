@@ -22,8 +22,8 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
   });
 
   // Fonction pour extraire les photos de tous les matériels des sections
-  const extrairePhotosMateriels = (): { [materielId: string]: { photos: string[], nom: string } } => {
-    const photosParMateriel: { [materielId: string]: { photos: string[], nom: string } } = {};
+  const extrairePhotosMateriels = (): { [materielId: string]: { photos: string[], nom: string, repare?: boolean } } => {
+    const photosParMateriel: { [materielId: string]: { photos: string[], nom: string, repare?: boolean } } = {};
     
     if (!inventaire.sections) {
       return photosParMateriel;
@@ -58,7 +58,8 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
             
             photosParMateriel[cleNormalisee] = {
               photos: toutesPhotos,
-              nom: materiel.nom
+              nom: materiel.nom,
+              repare: materiel.repare // Inclure la propriété repare
             };
           }
         });
@@ -173,14 +174,6 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
               </div>
               
               <div className="stat-item">
-                <div className="stat-icon">📈</div>
-                <div className="stat-details">
-                  <div className="stat-label">Progression</div>
-                  <div className="stat-value">{inventaire.progressPercent}%</div>
-                </div>
-              </div>
-              
-              <div className="stat-item">
                 <div className="stat-icon">✅</div>
                 <div className="stat-details">
                   <div className="stat-label">Validés</div>
@@ -198,25 +191,15 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
             </div>
           </div>
 
-          {/* Barre de progression */}
-          <div className="modal-section">
-            <div className="modal-progress">
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${inventaire.progressPercent}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
           {/* Défauts détaillés */}
           {(inventaire.defauts.length > 0 || Object.keys(photosMateriels).length > 0) && (
             <div className="modal-section">
               <h3>🔍 Défauts signalés</h3>
               <div className="modal-defauts">
-                {/* Afficher d'abord les matériels avec photos (réparés ou non) */}
-                {Object.entries(photosMateriels).map(([cle, data]) => {
+                {/* Afficher d'abord SEULEMENT les matériels RÉPARÉS avec photos */}
+                {Object.entries(photosMateriels)
+                  .filter(([, data]) => data.repare === true) // Seulement les réparés
+                  .map(([cle, data]) => {
                   return (
                     <div key={`photo-${cle}`} className="modal-defaut-item">
                       <div className="defaut-icon">

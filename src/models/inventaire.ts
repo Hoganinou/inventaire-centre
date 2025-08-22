@@ -16,7 +16,9 @@ export interface Materiel {
   photoRequise?: boolean; // Indique si une photo est requise pour cet élément
   bonEtat?: boolean; // Indique que l'élément est en bon état (pas besoin de photo)
   repare?: boolean; // Indique que l'élément a été réparé (photos précédentes obsolètes)
+  pasDeChangement?: boolean; // Indique qu'il n'y a pas de changement par rapport aux photos précédentes
   photosAnciennnes?: string[]; // Photos des inventaires précédents
+  photosReparees?: number[]; // Indices des photos anciennes qui correspondent aux problèmes réparés
 }
 
 export interface Section {
