@@ -6,10 +6,9 @@ import type { Materiel } from '../models/inventaire';
 interface PhotoInspectionItemProps {
   materiel: Materiel;
   onUpdate: (updates: Partial<Materiel>) => void;
-  isRecapMode?: boolean; // Nouveau prop pour le mode récap
 }
 
-const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onUpdate, isRecapMode = false }) => {
+const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onUpdate }) => {
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
   // État pour savoir si un problème a été explicitement signalé
   const [problemeSignale, setProblemeSignale] = useState(false);
@@ -25,8 +24,8 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   useEffect(() => {
     // TODO: Récupérer les photos de l'inventaire précédent depuis Firebase
     // Pour l'instant, on simule avec des photos d'exemple si il y en a
-    if (!materiel.photosAnciennnes && materiel.photos && materiel.photos.length > 0) {
-      onUpdate({ photosAnciennnes: materiel.photos, photos: [] });
+    if (!materiel.photosAnciennes && materiel.photos && materiel.photos.length > 0) {
+      onUpdate({ photosAnciennes: materiel.photos, photos: [] });
     }
     
     // Initialiser l'état problème signalé si déjà des photos ou un état défini
@@ -39,12 +38,11 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
 
   const handleBonEtatChange = (bonEtat: boolean) => {
     // Empêcher de marquer "Bon état" s'il y a déjà des photos de problème
-    if (bonEtat && ((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0))) {
+    if (bonEtat && ((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennes && materiel.photosAnciennes.length > 0))) {
       alert('Impossible de marquer "Bon état" : des photos de problème sont présentes. Veuillez d\'abord les traiter.');
       return;
     }
     
-    console.log('✅ Bon état sélectionné pour:', materiel.nom);
     onUpdate({
       bonEtat,
       repare: false,
@@ -58,14 +56,12 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleRepareChange = (repare: boolean) => {
-    if (repare && materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) {
+    if (repare && materiel.photosAnciennes && materiel.photosAnciennes.length > 0) {
       // Si on marque comme réparé et qu'il y a des photos anciennes, montrer la sélection
-      console.log('🔧 Affichage sélection photos réparées pour:', materiel.nom);
       setShowPhotoSelection(true);
       setSelectedPhotosRepaired([]); // Reset la sélection
     } else {
       // Logique normale si pas de photos anciennes ou si on démarque "réparé"
-      console.log('🔧 Réparé sélectionné pour:', materiel.nom);
       onUpdate({
         repare,
         bonEtat: false,
@@ -81,7 +77,6 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handlePasDeChangement = () => {
-    console.log('✓ Pas de changement pour:', materiel.nom);
     onUpdate({
       bonEtat: false, // Pas bon état car le défaut persiste
       repare: false,  // Pas réparé non plus
@@ -103,8 +98,6 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleConfirmPhotoSelection = () => {
-    console.log('🔧 Validation réparation avec photos sélectionnées:', selectedPhotosRepaired);
-    
     // Mettre à jour le matériel avec les informations de réparation
     onUpdate({
       repare: true,
@@ -125,7 +118,6 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleSignalerProbleme = () => {
-    console.log('🚨 Signaler un problème pour:', materiel.nom);
     onUpdate({
       bonEtat: false,
       repare: false,
@@ -136,7 +128,6 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleOpenPhotoCapture = () => {
-    console.log('📷 Ouverture interface photo pour:', materiel.nom);
     setShowPhotoCapture(true);
   };
 
@@ -152,14 +143,14 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
   };
 
   const handleNextPhoto = () => {
-    const photos = materiel.photosAnciennnes || [];
+    const photos = materiel.photosAnciennes || [];
     const nextIndex = (selectedPhotoIndex + 1) % photos.length;
     setSelectedPhotoIndex(nextIndex);
     setSelectedPhoto(photos[nextIndex]);
   };
 
   const handlePrevPhoto = () => {
-    const photos = materiel.photosAnciennnes || [];
+    const photos = materiel.photosAnciennes || [];
     const prevIndex = selectedPhotoIndex === 0 ? photos.length - 1 : selectedPhotoIndex - 1;
     setSelectedPhotoIndex(prevIndex);
     setSelectedPhoto(photos[prevIndex]);
@@ -184,7 +175,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
     if (materiel.pasDeChangement) return 'pas-de-changement';
     if (problemeSignale && materiel.photos && materiel.photos.length > 0) return 'avec-photos';
     if (problemeSignale) return 'probleme-signale';
-    if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return 'photos-anciennes';
+    if (materiel.photosAnciennes && materiel.photosAnciennes.length > 0) return 'photos-anciennes';
     return 'non-verifie';
   };
 
@@ -199,14 +190,16 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
     if (materiel.pasDeChangement) return '⚠️ Défaut persistant';
     if (problemeSignale && materiel.photos && materiel.photos.length > 0) return `📷 ${materiel.photos.length} photo(s)`;
     if (problemeSignale) return '⚠️ Problème signalé';
-    if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return '📅 Photos précédentes';
+    if (materiel.photosAnciennes && materiel.photosAnciennes.length > 0) return '📅 Photos précédentes';
     return '○ Non vérifié';
   };
 
   return (
     <div className={`photo-inspection-item ${getStatus()}`}>
       <div className="inspection-header">
-        <span className="item-name">{materiel.nom}</span>
+        <span className={`item-name ${materiel.defautPrecedent ? 'with-previous-defect' : ''}`}>
+          {materiel.nom}
+        </span>
         <span className={`status-badge ${getStatus()}`}>
           {getStatusText()}
         </span>
@@ -214,15 +207,15 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
 
       <div className="inspection-controls">
         <button
-          className={`control-button ${materiel.bonEtat ? 'active' : ''} ${((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0)) ? 'disabled' : ''}`}
+          className={`control-button ${materiel.bonEtat ? 'active' : ''} ${((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennes && materiel.photosAnciennes.length > 0)) ? 'disabled' : ''}`}
           onClick={() => handleBonEtatChange(!materiel.bonEtat)}
-          disabled={((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0))}
-          title={((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0)) ? 'Impossible avec des photos présentes' : 'Marquer comme bon état'}
+          disabled={((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennes && materiel.photosAnciennes.length > 0))}
+          title={((materiel.photos && materiel.photos.length > 0) || (materiel.photosAnciennes && materiel.photosAnciennes.length > 0)) ? 'Impossible avec des photos présentes' : 'Marquer comme bon état'}
         >
           ✓ Bon état
         </button>
 
-        {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && (
+        {materiel.photosAnciennes && materiel.photosAnciennes.length > 0 && (
           <>
             <button
               className={`control-button ${materiel.repare ? 'active' : ''}`}
@@ -249,11 +242,11 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
       </div>
 
       {/* Interface de sélection des photos réparées */}
-      {showPhotoSelection && materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && (
+      {showPhotoSelection && materiel.photosAnciennes && materiel.photosAnciennes.length > 0 && (
         <div className="photo-selection-section">
           <h5>🔧 Sélectionnez les photos qui correspondent au problème réparé :</h5>
           <div className="photo-grid">
-            {materiel.photosAnciennnes.map((photo, index) => (
+            {materiel.photosAnciennes.map((photo, index) => (
               <div 
                 key={index} 
                 className={`photo-item ancien selectable ${selectedPhotosRepaired.includes(index) ? 'selected' : ''}`}
@@ -289,7 +282,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
       )}
 
       {/* Afficher les photos anciennes si elles existent */}
-      {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && !materiel.repare && (
+      {materiel.photosAnciennes && materiel.photosAnciennes.length > 0 && !materiel.repare && (
         <div className="photos-anciennes">
           <h5>
             {materiel.pasDeChangement 
@@ -298,7 +291,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
             }
           </h5>
           <div className="photo-grid">
-            {materiel.photosAnciennnes.map((photo, index) => (
+            {materiel.photosAnciennes.map((photo, index) => (
               <div 
                 key={index} 
                 className="photo-item ancien clickable"
@@ -314,11 +307,11 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
       )}
 
       {/* Afficher les photos avec indication de réparation */}
-      {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0 && materiel.repare && materiel.photosReparees && (
+      {materiel.photosAnciennes && materiel.photosAnciennes.length > 0 && materiel.repare && materiel.photosReparees && (
         <div className="photos-reparees">
           <h5>🔧 Photos du problème réparé :</h5>
           <div className="photo-grid">
-            {materiel.photosAnciennnes.map((photo, index) => {
+            {materiel.photosAnciennes.map((photo, index) => {
               const isRepaired = materiel.photosReparees?.includes(index) || false;
               if (!isRepaired) return null; // Ne montrer que les photos réparées
               
@@ -337,11 +330,11 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
           </div>
           
           {/* Afficher les autres photos non réparées séparément */}
-          {materiel.photosAnciennnes.some((_, index) => !materiel.photosReparees?.includes(index)) && (
+          {materiel.photosAnciennes.some((_, index) => !materiel.photosReparees?.includes(index)) && (
             <>
               <h6 style={{marginTop: '15px', color: '#666'}}>📅 Autres photos de l'inventaire précédent :</h6>
               <div className="photo-grid">
-                {materiel.photosAnciennnes.map((photo, index) => {
+                {materiel.photosAnciennes.map((photo, index) => {
                   const isRepaired = materiel.photosReparees?.includes(index) || false;
                   if (isRepaired) return null; // Ne montrer que les photos non réparées
                   
@@ -370,7 +363,6 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
           <PhotoCapture
             materiel={materiel}
             onPhotoCapture={handlePhotosUpdate}
-            isRecapMode={isRecapMode}
           />
           <div className="photo-capture-controls">
             <button 
@@ -451,7 +443,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
             }}
           >
             <div className="photo-modal-header">
-              <h4>📅 Photo précédente ({selectedPhotoIndex + 1}/{materiel.photosAnciennnes?.length || 0})</h4>
+              <h4>📅 Photo précédente ({selectedPhotoIndex + 1}/{materiel.photosAnciennes?.length || 0})</h4>
               <button 
                 className="photo-modal-close"
                 onClick={handleClosePhotoModal}
@@ -461,7 +453,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
             </div>
             
             <div className="photo-modal-image-container">
-              {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 1 && (
+              {materiel.photosAnciennes && materiel.photosAnciennes.length > 1 && (
                 <button 
                   className="photo-nav-button photo-nav-prev"
                   onClick={handlePrevPhoto}
@@ -476,7 +468,7 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
                 className="photo-modal-image"
               />
               
-              {materiel.photosAnciennnes && materiel.photosAnciennnes.length > 1 && (
+              {materiel.photosAnciennes && materiel.photosAnciennes.length > 1 && (
                 <button 
                   className="photo-nav-button photo-nav-next"
                   onClick={handleNextPhoto}
@@ -498,3 +490,4 @@ const PhotoInspectionItem: React.FC<PhotoInspectionItemProps> = ({ materiel, onU
 };
 
 export default PhotoInspectionItem;
+

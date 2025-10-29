@@ -1,0 +1,537 @@
+/* Variables CSS pour les couleurs (au cas où elles ne seraient pas chargées) */
+:root {
+  --niveau-1: #4f7cff;
+  --niveau-1-light: #f0f4ff;
+}
+
+/* Animation fadeInUp utilisée dans les inventaires */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 40px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Style principal du panel mensuel - identique aux inventaires */
+.mensuel-container {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  background: linear-gradient(135deg, #e3e7fa 0%, #f7f7fa 100%);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1rem;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* Header et footer dans le style exact des inventaires */
+.mensuel-header {
+  border-radius: 0.3rem;
+  background: var(--niveau-1-light);
+  border-left: 5px solid var(--niveau-1);
+  box-shadow: 0 2px 8px rgba(79,124,255,0.12);
+  padding: 0.8rem 0.6rem 1rem 0.6rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mensuel-header h2 {
+  background: var(--niveau-1);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: -0.8rem -0.6rem -1rem -0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.3rem 0.3rem 0 0;
+  border: none;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.mensuel-footer {
+  border-radius: 0.3rem;
+  background: var(--niveau-1-light);
+  border-left: 5px solid var(--niveau-1);
+  box-shadow: 0 2px 8px rgba(79,124,255,0.12);
+  padding: 0.8rem 0.6rem 1rem 0.6rem;
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.mensuel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Sections dans le style exact des inventaires */
+.mensuel-section {
+  border-radius: 0.3rem;
+  background: var(--niveau-1-light);
+  border-left: 5px solid var(--niveau-1);
+  box-shadow: 0 2px 8px rgba(79,124,255,0.12);
+  padding: 0.8rem 0.6rem 1rem 0.6rem;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1rem;
+  min-height: fit-content;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.mensuel-section h3 {
+  background: var(--niveau-1);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: -0.8rem -0.6rem 1rem -0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.3rem 0.3rem 0 0;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-content {
+  padding: 0;
+  background: transparent;
+}
+
+/* Section content - contenu des panneaux */
+.section-content {
+  padding: 0.8rem;
+  background: white !important;
+  border-radius: 0.2rem;
+  margin-top: 0.5rem;
+}
+
+/* Forcer la visibilité de TOUS les éléments de texte */
+.mensuel-section *,
+.section-content *,
+.form-group *,
+.liquide-control *,
+.balai-control *,
+.pneu-control *,
+.lavage-controls * {
+  color: #333 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Assurer que tous les éléments de texte sont visibles */
+.section-content label,
+.section-content input,
+.section-content select,
+.section-content textarea {
+  color: #333 !important;
+  background: white !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Formulaires dans le style inventaire */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #333 !important;
+  font-size: 0.9rem;
+  display: block;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.8rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease;
+  background: white !important;
+  color: #333 !important;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+.form-group input[readonly] {
+  background: #f8f9fa !important;
+  color: #666 !important;
+}
+
+/* Grilles spécifiques - assurant la visibilité */
+.liquides-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.liquide-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.liquide-control label {
+  font-weight: 500;
+  color: #333 !important;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  display: block;
+}
+
+.liquide-control select {
+  padding: 0.8rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  background: white !important;
+  color: #333 !important;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  display: block;
+  width: 100%;
+}
+
+.liquide-control select:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+.balais-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.balai-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.balai-control label {
+  font-weight: 500;
+  color: #333 !important;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  display: block;
+}
+
+.balai-control select {
+  padding: 0.8rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  background: white !important;
+  color: #333 !important;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  display: block;
+  width: 100%;
+}
+
+.balai-control select:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+.pneus-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pneus-positions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.pneu-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.pneu-control label {
+  font-weight: 500;
+  color: #555;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.pneu-control input {
+  padding: 0.8rem;
+  padding-right: 3rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.pneu-control input:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+.unit {
+  position: absolute;
+  right: 0.8rem;
+  top: 2.2rem;
+  color: #888;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.lavage-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lavage-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.lavage-controls input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  cursor: pointer;
+  accent-color: var(--niveau-1);
+}
+
+/* Défauts */
+.defauts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.btn-add-defaut {
+  background: linear-gradient(135deg, #4f7cff, #00bfae);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.btn-add-defaut:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 124, 255, 0.3);
+}
+
+.defaut-item {
+  background: #fff5f5;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 2px solid #fed7d7;
+  margin-top: 1rem;
+}
+
+.defaut-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.defaut-controls select {
+  padding: 0.5rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  background: white;
+  min-width: 120px;
+}
+
+.btn-remove {
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #ff3742;
+}
+
+.defaut-item textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.8rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.defaut-item textarea:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+/* Textarea générale dans les sections */
+.section-content textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.8rem;
+  border: 2px solid #e9ecf3;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.section-content textarea:focus {
+  outline: none;
+  border-color: var(--niveau-1);
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.1);
+}
+
+.btn-back-home {
+  background: linear-gradient(135deg, #6c757d, #5a6268);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn-back-home:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-icon {
+  font-size: 1rem;
+}
+
+.btn-text {
+  font-weight: 500;
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Styles responsives */
+@media (max-width: 768px) {
+  .mensuel-container {
+    padding: 1rem;
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+  
+  .mensuel-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .liquides-grid,
+  .pneus-positions {
+    grid-template-columns: 1fr;
+  }
+  
+  .mensuel-footer {
+    flex-direction: column;
+  }
+}

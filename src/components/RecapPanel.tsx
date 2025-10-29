@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InventaireService } from '../firebase/inventaire-service';
 import InventaireModal from './InventaireModal';
+import MensuelPanel from './MensuelPanel';
 import type { InventaireSummary, InventaireRecord } from '../models/inventaire-record';
 import type { Vehicule } from '../models/inventaire';
 
@@ -14,6 +15,7 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
   const [summary, setSummary] = useState<InventaireSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInventaire, setSelectedInventaire] = useState<InventaireRecord | null>(null);
+  const [showMensuelPanel, setShowMensuelPanel] = useState(false);
 
   // Fonction pour extraire les photos de tous les matériels des sections
   const extrairePhotosMateriels = (sections?: any[]): { [materielId: string]: { photos: string[], nom: string } } => {
@@ -137,6 +139,20 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
     );
   }
 
+  // Si le panneau mensuel est ouvert, afficher seulement le contrôle mensuel
+  if (showMensuelPanel) {
+    return (
+      <MensuelPanel
+        vehicule={vehicule}
+        onClose={() => setShowMensuelPanel(false)}
+        onMensuelSaved={() => {
+          setShowMensuelPanel(false);
+          // Optionnel : recharger les données si nécessaire
+        }}
+      />
+    );
+  }
+
   return (
     <div className="recap-container">
       <h2 className="recap-title">📋 {vehicule.nom}</h2>
@@ -209,7 +225,7 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
           {summary.dernierInventaire.observation && (
             <div className="recap-observation">
               <h4>📝 Observations :</h4>
-              <div className="observation-text">
+              <div className="recap-observation-text">
                 {summary.dernierInventaire.observation}
               </div>
             </div>
@@ -260,6 +276,14 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
             <span className="btn-text">Retour accueil</span>
           </button>
         )}
+        
+        <button 
+          className="btn-control-mensuel"
+          onClick={() => setShowMensuelPanel(true)}
+        >
+          <span className="btn-icon">📋</span>
+          <span className="btn-text">Contrôle mensuel</span>
+        </button>
         
         <button 
           className="btn-start-inventaire"

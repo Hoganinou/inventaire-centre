@@ -20,7 +20,6 @@ export interface InventaireRecord {
   observation: string;
   totalMateriels: number;
   materielValides: number;
-  progressPercent: number;
 }
 
 export interface InventaireSummary {

@@ -29,14 +29,20 @@ const SectionPanel: React.FC<{
           <div className={`materiel-row niveau-${niveau}-materiel`} key={m.id}>
             <span>{m.nom}</span>
             <div className="controls">
-              <label>
-                Présent
-                <input type="checkbox" checked={m.estPresent} onChange={() => updateSection(path, mIdx, 'estPresent')} />
-              </label>
-              <label>
-                Fonctionne
-                <input type="checkbox" checked={m.fonctionne} onChange={() => updateSection(path, mIdx, 'fonctionne')} />
-              </label>
+              {/* Afficher la checkbox Présent pour tous les types checkbox */}
+              {(m.type === 'checkbox-presence' || m.type === 'checkbox-fonction' || m.type === 'checkbox' || !m.type) && (
+                <label>
+                  Présent
+                  <input type="checkbox" checked={m.estPresent} onChange={() => updateSection(path, mIdx, 'estPresent')} />
+                </label>
+              )}
+              {/* Afficher la checkbox Fonctionne seulement pour checkbox-fonction et checkbox (legacy) */}
+              {(m.type === 'checkbox-fonction' || m.type === 'checkbox' || (!m.type && m.hasOwnProperty('fonctionne'))) && (
+                <label>
+                  Fonctionne
+                  <input type="checkbox" checked={m.fonctionne} onChange={() => updateSection(path, mIdx, 'fonctionne')} />
+                </label>
+              )}
             </div>
           </div>
         ))}
@@ -102,7 +108,7 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
           // alors c'est un défaut (même si une photo est présente - la photo documente le défaut)
           if (!m.bonEtat && !m.repare) {
             const hasNewPhotos = !!(m.photos && m.photos.length > 0);
-            const hasOldPhotos = !!(m.photosAnciennnes && m.photosAnciennnes.length > 0);
+            const hasOldPhotos = !!(m.photosAnciennes && m.photosAnciennes.length > 0);
             const hasAnyPhotos = hasNewPhotos || hasOldPhotos;
             
             defauts.push({
@@ -114,10 +120,11 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
             });
           }
         }
-        // Logique spéciale pour voyant tableau de bord
-        else if (m.id === 'voyant_tableau_bord') {
+        // Logique spéciale pour matériels radio
+        else if ((m as any).type === 'radio') {
           // Si valeur === true, c'est qu'il y a un voyant allumé (défaut)
-          if (m.valeur === true) {
+          // MAIS exclure si le défaut a été marqué comme réparé
+          if (m.valeur === true && m.statutReparation !== 'repare') {
             defauts.push({
               chemin: path.join(' > '),
               nom: m.nom,
@@ -128,7 +135,28 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
           // Si valeur === false, c'est RAS (pas de défaut)
           // Si valeur === undefined, c'est non vérifié (pas de défaut non plus car pas encore contrôlé)
         }
-        // Si le matériel a SEULEMENT fonctionne (sans estPresent), on vérifie seulement fonctionne
+        // Nouveau système : si le matériel a un type checkbox-presence (présence seulement)
+        else if (m.type === 'checkbox-presence') {
+          if (!m.estPresent) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: m.estPresent ?? false,
+            });
+          }
+        }
+        // Si le matériel a un type checkbox-fonction (présence ET fonction)
+        else if (m.type === 'checkbox-fonction') {
+          if (!m.estPresent || !m.fonctionne) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: m.estPresent ?? false,
+              fonctionne: m.fonctionne ?? false,
+            });
+          }
+        }
+        // Legacy : Si le matériel a SEULEMENT fonctionne (sans estPresent), on vérifie seulement fonctionne
         else if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
           if (!m.fonctionne) {
             defauts.push({
@@ -139,7 +167,7 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
             });
           }
         }
-        // Si le matériel a les deux propriétés estPresent ET fonctionne
+        // Legacy : Si le matériel a les deux propriétés estPresent ET fonctionne
         else if (m.hasOwnProperty('fonctionne') && m.hasOwnProperty('estPresent')) {
           if (!m.estPresent || !m.fonctionne) {
             defauts.push({
@@ -170,6 +198,48 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
               chemin: path.join(' > '),
               nom: m.nom,
               present: false,
+            });
+          } else if (m.type === 'checkbox-ok' && !m.valeur) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: false,
+              details: 'Non coché (OK)'
+            });
+          } else if (m.type === 'niveau' && (m.valeur === 'Bas' || m.valeur === 'Vide' || !m.valeur)) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: true,
+              details: `Niveau: ${m.valeur || 'Non défini'}`
+            });
+          } else if ((m.type === 'etat' || m.type === 'statut-ternaire') && (m.valeur === 'Mauvais' || !m.valeur)) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: true,
+              details: `État: ${m.valeur || 'Non défini'}`
+            });
+          } else if (m.type === 'conformite' && (m.valeur === 'Non conforme' || !m.valeur)) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: true,
+              details: `Conformité: ${m.valeur || 'Non définie'}`
+            });
+          } else if (m.type === 'date' && !m.valeur) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: false,
+              details: 'Date non renseignée'
+            });
+          } else if (m.type === 'texte-libre' && (!m.valeur || m.valeur.trim() === '')) {
+            defauts.push({
+              chemin: path.join(' > '),
+              nom: m.nom,
+              present: false,
+              details: 'Texte non renseigné'
             });
           } else if ((!m.type || m.type === 'checkbox') && !m.estPresent) {
             defauts.push({
@@ -256,47 +326,79 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
   const materielsList = flattenMateriels(currentSection);
   const groupedMateriels = groupMaterielsBySousPartie(materielsList);
 
-  // Charger les photos du dernier inventaire au démarrage
+  // Charger les photos et défauts du dernier inventaire au démarrage
   useEffect(() => {
-    const chargerPhotosAnciennes = async () => {
+    const chargerDonneesAnciennes = async () => {
       try {
-
-        const photosParMateriel = await InventaireService.getDernieresPhotos(vehicule.id);
+        console.log('🔍 Chargement des données pour véhicule:', vehicule.id);
         
-        if (Object.keys(photosParMateriel).length > 0) {
-
+        // Charger les photos
+        const photosParMateriel = await InventaireService.getDernieresPhotos(vehicule.id);
+        console.log('📸 Photos récupérées:', photosParMateriel);
+        
+        // Charger les défauts précédents
+        const defautsParMateriel = await InventaireService.getDerniersDefauts(vehicule.id);
+        console.log('⚠️ Défauts précédents récupérés:', defautsParMateriel);
+        console.log('🔍 Clés des défauts:', Object.keys(defautsParMateriel));
+        
+        if (Object.keys(photosParMateriel).length > 0 || Object.keys(defautsParMateriel).length > 0) {
+          console.log('✅ Données trouvées, mise à jour de l\'état');
           
           setEtat(prev => {
             const copy = JSON.parse(JSON.stringify(prev));
             
-            // Fonction récursive pour mettre à jour les photos dans les sections
-            const mettreAJourPhotos = (section: any) => {
+            // Fonction récursive pour mettre à jour les photos et défauts dans les sections
+            const mettreAJourDonnees = (section: any) => {
               if (section.materiels) {
                 section.materiels.forEach((materiel: any) => {
+                  // Assigner les photos
                   if (photosParMateriel[materiel.id]) {
-                    materiel.photosAnciennnes = photosParMateriel[materiel.id];
-
+                    console.log(`📷 Assignation de ${photosParMateriel[materiel.id].length} photos à ${materiel.id}`);
+                    materiel.photosAnciennes = photosParMateriel[materiel.id];
+                  }
+                  
+                  // Marquer les défauts précédents et auto-sélectionner pour les radios
+                  if (defautsParMateriel[materiel.id]) {
+                    console.log(`⚠️ Marquage défaut précédent pour ${materiel.id}`);
+                    materiel.defautPrecedent = true;
+                    
+                    // Récupérer l'observation précédente (extraire seulement le texte utilisateur)
+                    const observationBrute = defautsParMateriel[materiel.id].observation;
+                    if (observationBrute) {
+                      // Si l'observation contient "Voyant(s) allumé(s) - ", extraire seulement la partie après
+                      if (observationBrute.includes(' - ')) {
+                        materiel.observationPrecedente = observationBrute.split(' - ').slice(1).join(' - ');
+                      } else {
+                        materiel.observationPrecedente = observationBrute;
+                      }
+                    }
+                    
+                    // Auto-sélectionner le défaut pour les matériels radio
+                    if ((materiel as any).type === 'radio') {
+                      materiel.valeur = true; // Sélectionner automatiquement le défaut
+                      console.log(`🔘 Auto-sélection du défaut pour le matériel radio: ${materiel.id}`);
+                    }
                   }
                 });
               }
               
               if (section.sousSections) {
                 section.sousSections.forEach((sousSection: any) => {
-                  mettreAJourPhotos(sousSection);
+                  mettreAJourDonnees(sousSection);
                 });
               }
             };
 
-            copy.forEach(mettreAJourPhotos);
+            copy.forEach(mettreAJourDonnees);
             return copy;
           });
         }
       } catch (error) {
-        console.warn('⚠️ Erreur lors du chargement des photos précédentes:', error);
+        console.warn('⚠️ Erreur lors du chargement des données précédentes:', error);
       }
     };
 
-    chargerPhotosAnciennes();
+    chargerDonneesAnciennes();
   }, [vehicule.id]); // Se déclenche quand on change de véhicule
 
   const updateSection = (path: string, materielIdx: number, field: 'estPresent' | 'fonctionne') => {
@@ -336,7 +438,25 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       let section = findSectionByPath(copy, pathArr);
       if (section && section.materiels) {
         // Mettre à jour tous les champs fournis
-        section.materiels[materielIdx] = { ...section.materiels[materielIdx], ...updates };
+        const materiel = { ...section.materiels[materielIdx], ...updates };
+        
+        // Gestion spéciale des statuts de réparation
+        if (updates.repare === true) {
+          // Si le matériel est marqué comme réparé, effacer le défaut actuel mais garder l'historique
+          materiel.valeur = false; // Plus de défaut actuel
+          materiel.defautPrecedent = true; // Garder trace qu'il y avait un défaut
+          materiel.statutReparation = 'repare'; // Marquer comme réparé
+        } else if (updates.pasDeChangement === true) {
+          // Le défaut persiste sans changement
+          materiel.valeur = true; // Garder le défaut
+          materiel.statutReparation = 'aucun_changement';
+        } else if (updates.nouveauDefaut === true) {
+          // Nouveau défaut détecté
+          materiel.valeur = true; // Défaut présent
+          materiel.statutReparation = 'nouveau_defaut';
+        }
+        
+        section.materiels[materielIdx] = materiel;
       }
       return copy;
     });
@@ -421,8 +541,6 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       return;
     }
 
-    console.log('🧑 Agent saisi:', agent);
-    
     // Si pas encore authentifié, faire l'authentification avec les valeurs du formulaire
     if (!authenticatedUser) {
       if (!agent || !pin) {
@@ -562,7 +680,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         if (previousMateriel) {
           // Conserver toutes les données importantes du précédent inventaire
           if (previousMateriel.photos) materiel.photos = [...previousMateriel.photos];
-          if (previousMateriel.photosAnciennnes) materiel.photosAnciennnes = [...previousMateriel.photosAnciennnes];
+          if (previousMateriel.photosAnciennes) materiel.photosAnciennes = [...previousMateriel.photosAnciennes];
           if (previousMateriel.bonEtat !== undefined) materiel.bonEtat = previousMateriel.bonEtat;
           if (previousMateriel.repare !== undefined) materiel.repare = previousMateriel.repare;
           if (previousMateriel.pasDeChangement !== undefined) materiel.pasDeChangement = previousMateriel.pasDeChangement;
@@ -598,8 +716,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
           Object.assign(materiel, modifiedMateriel);
           
           // Conserver les photos anciennes si elles existent
-          if (previousMateriel?.photosAnciennnes && !materiel.photosAnciennnes) {
-            materiel.photosAnciennnes = [...previousMateriel.photosAnciennnes];
+          if (previousMateriel?.photosAnciennes && !materiel.photosAnciennes) {
+            materiel.photosAnciennes = [...previousMateriel.photosAnciennes];
           }
         }
       });
@@ -656,14 +774,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         sections: sectionsWithPhotoUrls,
         observation: observation || '',
         materielValides: getCompletedMaterials(),
-        totalMateriels: getTotalMaterials(),
-        progressPercent: 0 // Sera calculé après
+        totalMateriels: getTotalMaterials()
       };
-
-      // Calculer le pourcentage de progression
-      inventaireRecord.progressPercent = inventaireRecord.totalMateriels > 0 
-        ? Math.round((inventaireRecord.materielValides / inventaireRecord.totalMateriels) * 100) 
-        : 0;
 
       // 1. Sauvegarde Firebase
       try {
@@ -769,16 +881,25 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
           return isVerified && quantiteReelle > 0; // Vérifié avec une quantité
         }
         if (m.type === 'select') return (m.valeur ?? '') !== '';
-      if (m.type === 'photo') {
-        // Pour les photos : soit bon état, soit réparé, soit défaut persistant, soit photos présentes
-        return m.bonEtat || m.repare || m.pasDeChangement || (m.photos && m.photos.length > 0);
-      }
-      
-      // Pour les matériels avec voyant tableau de bord - logique spéciale
-      if (m.id === 'voyant_tableau_bord') {
-        // Compter comme "complété" seulement si RAS (false), pas si voyants allumés (true) 
-        return m.valeur === false;
-      }        // Pour les matériels qui n'ont QUE "fonctionne" (comme Klaxon)
+        if (m.type === 'checkbox-ok') return m.valeur === true;
+        if (m.type === 'niveau') return m.valeur && m.valeur !== 'Vide';
+        if (m.type === 'etat' || m.type === 'statut-ternaire') return m.valeur && m.valeur !== 'Mauvais';
+        if (m.type === 'conformite') return m.valeur === 'Conforme';
+        if (m.type === 'date') return (m.valeur ?? '') !== '';
+        if (m.type === 'texte-libre') return (m.valeur ?? '').trim() !== '';
+        
+        if (m.type === 'photo') {
+          // Pour les photos : soit bon état, soit réparé, soit défaut persistant, soit photos présentes
+          return m.bonEtat || m.repare || m.pasDeChangement || (m.photos && m.photos.length > 0);
+        }
+        
+        // Pour les matériels radio - logique spéciale
+        if ((m as any).type === 'radio') {
+          // Compter comme "complété" seulement si RAS (false), pas si voyants allumés (true) 
+          return m.valeur === false;
+        }
+        
+        // Pour les matériels qui n'ont QUE "fonctionne" (comme Klaxon)
         if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
           // Compter comme "complété" si vérifié, peu importe si ça fonctionne ou non
           return (m as any).estVerifie === true;
@@ -793,10 +914,6 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       }).length;
     }, 0);
   };
-
-  const totalMaterials = getTotalMaterials();
-  const completedMaterials = getCompletedMaterials();
-  const progressPercent = totalMaterials > 0 ? Math.round((completedMaterials / totalMaterials) * 100) : 0;
 
   // Fonction pour vérifier si l'utilisateur a fait au moins une vérification
   const hasUserMadeAnyVerification = (): boolean => {
@@ -834,7 +951,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
     return materielsList.some(item => {
       const m = item.materiel;
       // Logique spéciale pour voyant tableau de bord
-      if (m.id === 'voyant_tableau_bord') {
+      if ((m as any).type === 'radio') {
         // Il y a défaut si valeur === true (voyant allumé)
         return m.valeur === true;
       }
@@ -870,10 +987,22 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         completed = isVerified;
       } else if (m.type === 'select') {
         completed = (m.valeur ?? '') !== '';
+      } else if (m.type === 'checkbox-ok') {
+        completed = typeof m.valeur === 'boolean';
+      } else if (m.type === 'niveau') {
+        completed = (m.valeur ?? '') !== '';
+      } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
+        completed = (m.valeur ?? '') !== '';
+      } else if (m.type === 'conformite') {
+        completed = (m.valeur ?? '') !== '';
+      } else if (m.type === 'date') {
+        completed = (m.valeur ?? '') !== '';
+      } else if (m.type === 'texte-libre') {
+        completed = (m.valeur ?? '').trim() !== '';
       } else if (m.type === 'photo') {
         completed = !!(m.bonEtat || m.repare || m.pasDeChangement || (m.photos && m.photos.length > 0));
-      } else if (m.id === 'voyant_tableau_bord') {
-        // Pour les voyants : complété si une valeur a été sélectionnée
+      } else if ((m as any).type === 'radio') {
+        // Pour les matériels radio : complété si une valeur a été sélectionnée
         completed = m.valeur === false || m.valeur === true;
       } else if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
         // Pour les matériels qui n'ont QUE "fonctionne"
@@ -896,9 +1025,21 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         return m.estPresent === true;
       } else if (m.type === 'select') {
         return (m.valeur ?? '') !== '';
+      } else if (m.type === 'checkbox-ok') {
+        return typeof m.valeur === 'boolean';
+      } else if (m.type === 'niveau') {
+        return (m.valeur ?? '') !== '';
+      } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
+        return (m.valeur ?? '') !== '';
+      } else if (m.type === 'conformite') {
+        return (m.valeur ?? '') !== '';
+      } else if (m.type === 'date') {
+        return (m.valeur ?? '') !== '';
+      } else if (m.type === 'texte-libre') {
+        return (m.valeur ?? '').trim() !== '';
       } else if (m.type === 'photo') {
         return !!(m.bonEtat || m.repare || m.pasDeChangement || (m.photos && m.photos.length > 0));
-      } else if (m.id === 'voyant_tableau_bord') {
+      } else if ((m as any).type === 'radio') {
         // Traité si une valeur a été explicitement sélectionnée (peu importe estPresent)
         return m.valeur === false || m.valeur === true;
       } else if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
@@ -990,33 +1131,14 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
           </div>
         </div>
         
-        {/* Indicateur de progression global */}
-        <div className="progress-container">
-          <div className="progress-info">
-            <span className="progress-text">Progression globale: {completedMaterials}/{totalMaterials}</span>
-            <span className="progress-percent">{progressPercent}%</span>
-          </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{width: `${progressPercent}%`}}></div>
-          </div>
-        </div>
-
         <div className="inventaire-container">
           {/* Formulaire de résumé */}
           <form onSubmit={handleSubmit} className="final-form" autoComplete="off">
             <div className="form-summary">
               <h3>📋 Résumé de l'inventaire</h3>
               <div className="summary-stats">
-                <div className="stat-item">
-                  <span className="stat-label">Matériels vérifiés:</span>
-                  <span className="stat-value">{completedMaterials}/{totalMaterials}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Progression:</span>
-                  <span className="stat-value">{progressPercent}%</span>
-                </div>
                 <div className="stat-item alert">
-                  <span className="stat-label">⚠️ Matériels manquants:</span>
+                  <span className="stat-label">⚠️ Défauts ou manquants:</span>
                   <span className="stat-value">{getDefauts(etat).length}</span>
                 </div>
               </div>
@@ -1128,17 +1250,6 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         </div>
       </div>
       
-      {/* Indicateur de progression global */}
-      <div className="progress-container">
-        <div className="progress-info">
-          <span className="progress-text">Progression globale: {completedMaterials}/{totalMaterials}</span>
-          <span className="progress-percent">{progressPercent}%</span>
-        </div>
-        <div className="progress-bar">
-          <div className="progress-fill" style={{width: `${progressPercent}%`}}></div>
-        </div>
-      </div>
-
       {/* Navigation par onglets */}
       <div className="section-tabs">
         {etat.map((section, idx) => {
@@ -1179,19 +1290,27 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                   // Affichage dynamique selon le type de matériel
                   return (
                     <div className={`materiel-row niveau-${sectionDepth}-materiel groupe-${idx % 8}-materiel`} key={materiel.id}>
-                      <span className="materiel-name">{materiel.nom}</span>
+                      <span className={`materiel-name ${materiel.defautPrecedent ? 'with-previous-defect' : ''}`}>
+                        {materiel.nom}
+                        {/* Indicateur de statut de réparation */}
+                        {materiel.statutReparation === 'repare' && (
+                          <span className="status-repare" title="Défaut réparé">✅</span>
+                        )}
+                      </span>
                       <div className="controls-enhanced">
-                        {/* Logique spéciale pour voyant tableau de bord avec boutons radio */}
-                        {materiel.id === 'voyant_tableau_bord' && materiel.hasOwnProperty('estPresent') && (
+                        <div className="controls-main">
+                        {/* Logique spéciale pour matériels avec boutons radio */}
+                        {materiel.type === 'radio' && materiel.hasOwnProperty('estPresent') && (
                           <div className="radio-group">
-                            <label className="control-radio">
+                            <label className={`control-radio ${materiel.defautPrecedent ? 'disabled' : ''}`}>
                               <input 
                                 type="radio" 
                                 name={`voyant_${materiel.id}_${item.materielIdx}`}
                                 checked={materiel.valeur === false} 
-                                onChange={() => path && updateMaterielValeur(path, item.materielIdx, false)} 
+                                disabled={materiel.defautPrecedent}
+                                onChange={() => path && !materiel.defautPrecedent && updateMaterielValeur(path, item.materielIdx, false)} 
                               />
-                              <span className="radio-label">RAS</span>
+                              <span className="radio-label">{materiel.options?.[0] || 'RAS'}</span>
                             </label>
                             <label className="control-radio">
                               <input 
@@ -1200,12 +1319,82 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                                 checked={materiel.valeur === true} 
                                 onChange={() => path && updateMaterielValeur(path, item.materielIdx, true)} 
                               />
-                              <span className="radio-label">Voyant(s) allumé(s)</span>
+                              <span className="radio-label">{materiel.options?.[1] || 'Défaut'}</span>
                             </label>
                           </div>
                         )}
-                        {/* Afficher "Présent" pour les autres matériels */}
-                        {(!materiel.type || materiel.type === 'checkbox') && materiel.hasOwnProperty('estPresent') && materiel.id !== 'voyant_tableau_bord' && (
+                        
+                        {/* Options de réparation pour défaut précédent des matériels radio */}
+                        {materiel.type === 'radio' && materiel.defautPrecedent && (
+                          <div className="defect-repair-options">
+                            <span className="repair-label">Défaut précédent:</span>
+                            {materiel.observationPrecedente && (
+                              <div className="previous-observation">
+                                <span className="observation-label">Observation précédente :</span>
+                                <span className="observation-text">{materiel.observationPrecedente}</span>
+                              </div>
+                            )}
+                            <div className="repair-radio-group">
+                              <label className="control-radio">
+                                <input 
+                                  type="radio" 
+                                  name={`repair_${materiel.id}_${item.materielIdx}`}
+                                  checked={materiel.repare === true}
+                                  onChange={() => path && updateMaterielPhotoFields(path, item.materielIdx, { repare: true, pasDeChangement: false, nouveauDefaut: false })}
+                                />
+                                <span className="radio-label">Réparé</span>
+                              </label>
+                              <label className="control-radio">
+                                <input 
+                                  type="radio" 
+                                  name={`repair_${materiel.id}_${item.materielIdx}`}
+                                  checked={materiel.pasDeChangement === true}
+                                  onChange={() => path && updateMaterielPhotoFields(path, item.materielIdx, { pasDeChangement: true, repare: false, nouveauDefaut: false })}
+                                />
+                                <span className="radio-label">Pas de changement</span>
+                              </label>
+                              <label className="control-radio">
+                                <input 
+                                  type="radio" 
+                                  name={`repair_${materiel.id}_${item.materielIdx}`}
+                                  checked={materiel.nouveauDefaut === true}
+                                  onChange={() => path && updateMaterielPhotoFields(path, item.materielIdx, { nouveauDefaut: true, repare: false, pasDeChangement: false })}
+                                />
+                                <span className="radio-label">Nouveau</span>
+                              </label>
+                            </div>
+                            
+                            {/* Champ observation pour nouveau défaut */}
+                            {materiel.nouveauDefaut === true && (
+                              <div className="observation-field">
+                                <label className="observation-label">Nouvelle observation :</label>
+                                <textarea
+                                  value={materiel.observation || ''}
+                                  onChange={(e) => path && updateMaterielPhotoFields(path, item.materielIdx, { observation: e.target.value })}
+                                  className="observation-textarea"
+                                  placeholder="Décrivez le nouveau défaut observé..."
+                                  rows={2}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Champ observation pour les matériels radio avec défaut MAIS sans défaut précédent */}
+                        {materiel.type === 'radio' && materiel.valeur === true && !materiel.defautPrecedent && (
+                          <div className="observation-field">
+                            <label className="observation-label">Observation :</label>
+                            <textarea
+                              value={materiel.observation || ''}
+                              onChange={(e) => path && updateMaterielPhotoFields(path, item.materielIdx, { observation: e.target.value })}
+                              className="observation-textarea"
+                              placeholder="Décrivez le défaut observé..."
+                              rows={2}
+                            />
+                          </div>
+                        )}
+                        {/* Afficher "Présent" pour les matériels avec checkbox */}
+                        {(materiel.type === 'checkbox-presence' || materiel.type === 'checkbox-fonction' || materiel.type === 'checkbox' || (!materiel.type && materiel.hasOwnProperty('estPresent'))) && !(materiel.type as any === 'radio') && (
                           <label className="control-checkbox">
                             <input 
                               type="checkbox" 
@@ -1261,6 +1450,110 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             </select>
                           </label>
                         )}
+                        
+                        {/* Case à cocher simple "OK" */}
+                        {materiel.type === 'checkbox-ok' && (
+                          <label className="control-checkbox">
+                            <input 
+                              type="checkbox" 
+                              checked={materiel.valeur || false} 
+                              onChange={() => path && updateMaterielValeur(path, item.materielIdx, !materiel.valeur)} 
+                            />
+                            <span className="checkbox-label">OK</span>
+                          </label>
+                        )}
+                        
+                        {/* Sélecteur pour niveau (Plein/Moyen/Bas/Vide) */}
+                        {materiel.type === 'niveau' && (
+                          <label className="control-select">
+                            <span className="select-label">Niveau</span>
+                            <select 
+                              value={materiel.valeur || 'Plein'} 
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="select-input"
+                            >
+                              {materiel.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        
+                        {/* Sélecteur pour état (Bon/Moyen/Mauvais) */}
+                        {materiel.type === 'etat' && (
+                          <label className="control-select">
+                            <span className="select-label">État</span>
+                            <select 
+                              value={materiel.valeur || 'Bon'} 
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="select-input"
+                            >
+                              {materiel.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        
+                        {/* Sélecteur pour statut ternaire (Bon/Moyen/Mauvais) */}
+                        {materiel.type === 'statut-ternaire' && (
+                          <label className="control-select">
+                            <span className="select-label">Statut</span>
+                            <select 
+                              value={materiel.valeur || 'Bon'} 
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="select-input"
+                            >
+                              {materiel.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        
+                        {/* Sélecteur pour conformité (Conforme/Non conforme) */}
+                        {materiel.type === 'conformite' && (
+                          <label className="control-select">
+                            <span className="select-label">Conformité</span>
+                            <select 
+                              value={materiel.valeur || 'Conforme'} 
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="select-input"
+                            >
+                              {materiel.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                        
+                        {/* Sélecteur de date */}
+                        {materiel.type === 'date' && (
+                          <label className="control-date">
+                            <span className="date-label">Date</span>
+                            <input 
+                              type="date" 
+                              value={materiel.valeur || ''} 
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="date-input"
+                            />
+                          </label>
+                        )}
+                        
+                        {/* Champ texte libre */}
+                        {materiel.type === 'texte-libre' && (
+                          <label className="control-text">
+                            <span className="text-label">Texte</span>
+                            <input 
+                              type="text" 
+                              value={materiel.valeur || ''} 
+                              placeholder="Saisir..."
+                              onChange={e => path && updateMaterielValeur(path, item.materielIdx, e.target.value)} 
+                              className="text-input"
+                            />
+                          </label>
+                        )}
+                        
                         {materiel.type === 'photo' && (
                           <PhotoInspectionItem
                             materiel={materiel}
@@ -1271,8 +1564,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             }}
                           />
                         )}
-                        {/* Pour compatibilité, on affiche "Fonctionne" seulement si la propriété existe dans le matériel */}
-                        {((!materiel.type || materiel.type === 'checkbox') && materiel.hasOwnProperty('fonctionne')) && (
+                        {/* Afficher "Fonctionne" seulement pour checkbox-fonction et checkbox (legacy) */}
+                        {(materiel.type === 'checkbox-fonction' || materiel.type === 'checkbox' || (!materiel.type && materiel.hasOwnProperty('fonctionne'))) && (
                           <label className="control-checkbox">
                             <input 
                               type="checkbox" 
@@ -1282,6 +1575,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             <span className="checkbox-label">Fonctionne</span>
                           </label>
                         )}
+                        </div>
                         {/* Indicateur visuel de statut */}
                         <div className={`status-indicator ${(() => {
                           if (materiel.type === 'quantite') {
@@ -1301,11 +1595,11 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             if (materiel.repare) return 'status-ok';
                             if (materiel.pasDeChangement) return 'status-ok'; // Défaut persistant = validé
                             if (materiel.photos && materiel.photos.length > 0) return 'status-warning'; // Problème documenté
-                            if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) return 'status-pending'; // À vérifier
+                            if (materiel.photosAnciennes && materiel.photosAnciennes.length > 0) return 'status-pending'; // À vérifier
                             return 'status-empty';
                           } else {
-                            // Logique spéciale pour voyant tableau de bord
-                            if (materiel.id === 'voyant_tableau_bord') {
+                            // Logique spéciale pour matériels radio
+                            if ((materiel as any).type === 'radio') {
                               // Validé seulement si l'utilisateur a fait un choix explicite
                               if (materiel.valeur !== undefined && materiel.valeur !== null) {
                                 return materiel.valeur ? 'status-warning' : 'status-ok'; // Warning si voyants allumés, OK si RAS
@@ -1346,8 +1640,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             } else if (materiel.type === 'photo') {
                               return (materiel.photos ?? []).length > 0 ? '📷' : '○';
                             } else {
-                              // Logique spéciale pour voyant tableau de bord  
-                              if (materiel.id === 'voyant_tableau_bord') {
+                              // Logique spéciale pour matériels radio  
+                              if ((materiel as any).type === 'radio') {
                                 // Affiché seulement si l'utilisateur a fait un choix explicite
                                 if (materiel.valeur !== undefined && materiel.valeur !== null) {
                                   return materiel.valeur ? '⚠️' : '✓'; // Warning si voyants allumés, OK si RAS
@@ -1376,21 +1670,6 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                           })()}
                         </div>
                       </div>
-                      {/* Champ observation conditionnel pour "Voyant tableau de bord" - en dehors des contrôles pour éviter le wrap */}
-                      {materiel.id === 'voyant_tableau_bord' && materiel.valeur === true && (
-                        <div className="observation-field">
-                          <label className="observation-label">
-                            <span>Observation:</span>
-                            <textarea
-                              value={materiel.observation || ''}
-                              onChange={(e) => path && updateMaterielPhotoFields(path, item.materielIdx, { observation: e.target.value })}
-                              placeholder="Décrire les voyants allumés..."
-                              className="form-textarea-small"
-                              rows={2}
-                            />
-                          </label>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1431,3 +1710,4 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
 };
 
 export default InventairePanel;
+

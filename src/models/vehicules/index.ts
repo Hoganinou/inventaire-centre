@@ -10,3 +10,8 @@ export const vehicules: Record<string, Vehicule> = {
   // VSAV2: vsav2,
   // ...
 };
+
+export const getVehiculeById = (id: string): Vehicule | null => {
+  const vehicule = vehicules[id.toUpperCase()];
+  return vehicule || null;
+};

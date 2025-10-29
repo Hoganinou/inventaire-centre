@@ -38,8 +38,10 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
             toutesPhotos = [...toutesPhotos, ...materiel.photos];
           }
           
-          if (materiel.photosAnciennnes && materiel.photosAnciennnes.length > 0) {
-            toutesPhotos = [...toutesPhotos, ...materiel.photosAnciennnes];
+          // Support rétrocompatibilité : photosAnciennnes ET photosAnciennes
+          const photosAnciennes = materiel.photosAnciennes || materiel.photosAnciennnes || [];
+          if (photosAnciennes.length > 0) {
+            toutesPhotos = [...toutesPhotos, ...photosAnciennes];
           }
           
           if (materiel.photosMateriels && materiel.photosMateriels.length > 0) {
@@ -248,14 +250,14 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
                   // Chercher les photos dans les matériels actuels
                   const photosMateriels = trouverPhotosParNom(defaut.nom);
                   
-                  // Ajouter les photos anciennes si elles existent
-                  const photosAnciennnes = (defaut as any).photosAnciennnes || [];
+                  // Ajouter les photos anciennes si elles existent (support rétrocompatibilité)
+                  const photosAnciennes = (defaut as any).photosAnciennes || (defaut as any).photosAnciennnes || [];
                   
                   // Chercher aussi dans les propriétés alternatives
                   const photosAlternatives = (defaut as any).photos || [];
                   
                   // Combiner toutes les photos disponibles
-                  const toutesPhotos = [...photosMateriels, ...photosAnciennnes, ...photosAlternatives];
+                  const toutesPhotos = [...photosMateriels, ...photosAnciennes, ...photosAlternatives];
                   
                   return (
                     <div key={`${defaut.chemin}-${defaut.nom}-${index}`} className="modal-defaut-item">
@@ -274,7 +276,7 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
                           <div className="defaut-photos">
                             <div className="photos-label">
                               📷 Photos ({toutesPhotos.length})
-                              {photosAnciennnes.length > 0 && <span className="photos-anciennes-label"> - {photosAnciennnes.length} ancienne(s)</span>}
+                              {photosAnciennes.length > 0 && <span className="photos-anciennes-label"> - {photosAnciennes.length} ancienne(s)</span>}
                             </div>
                             <div className="photos-grid">
                               {toutesPhotos.map((photoUrl, photoIndex) => (
@@ -480,3 +482,4 @@ const InventaireModal: React.FC<Props> = ({ inventaire, onClose }) => {
 };
 
 export default InventaireModal;
+

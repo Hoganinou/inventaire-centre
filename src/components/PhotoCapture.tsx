@@ -4,18 +4,13 @@ import type { Materiel } from '../models/inventaire';
 interface PhotoCaptureProps {
   materiel: Materiel;
   onPhotoCapture: (photos: string[]) => void;
-  isRecapMode?: boolean; // Nouveau prop pour distinguer le mode récap
 }
 
-const PhotoCapture: React.FC<PhotoCaptureProps> = ({ materiel, onPhotoCapture, isRecapMode = false }) => {
+const PhotoCapture: React.FC<PhotoCaptureProps> = ({ materiel, onPhotoCapture }) => {
   const [photos, setPhotos] = useState<string[]>(materiel.photos || []);
-
-  console.log('📷 PhotoCapture chargé pour:', materiel.nom, 'avec', photos.length, 'photos existantes');
 
   const removeAllPhotos = () => {
     if (confirm('Êtes-vous sûr de vouloir supprimer toutes les photos ?')) {
-      console.log('🗑️ Suppression de toutes les photos - Mode récap:', isRecapMode);
-      
       // Pour l'instant, on ne gère que la suppression locale
       // TODO: Implémenter la suppression Firebase Storage plus tard si nécessaire
       setPhotos([]);
@@ -25,8 +20,6 @@ const PhotoCapture: React.FC<PhotoCaptureProps> = ({ materiel, onPhotoCapture, i
 
   const removePhoto = (index: number) => {
     if (confirm('Supprimer cette photo ?')) {
-      console.log('🗑️ Suppression photo index:', index, '- Mode récap:', isRecapMode);
-      
       // Pour l'instant, on ne gère que la suppression locale
       // TODO: Implémenter la suppression Firebase Storage plus tard si nécessaire
       const newPhotos = photos.filter((_, i) => i !== index);
