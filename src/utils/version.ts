@@ -1,8 +1,8 @@
 // Version et cache busting - Généré automatiquement
 export const APP_VERSION = "1.0.0";
-export const BUILD_DATE = new Date("2025-10-29T23:47:33.235Z");
-export const BUILD_NUMBER = "8";
-export const GIT_COMMIT = "f6306a1";
+export const BUILD_DATE = new Date("2025-10-29T23:48:33.434Z");
+export const BUILD_NUMBER = "11";
+export const GIT_COMMIT = "7ed1743";
 
 // Cache busting automatique
 export const CACHE_VERSION = `v${APP_VERSION}-${BUILD_NUMBER}`;
