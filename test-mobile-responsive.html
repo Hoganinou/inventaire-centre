@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Mobile - Onglets de Navigation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      margin: 0;
+    }
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .test-step {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8fafc;
+      border-left: 4px solid #4f7cff;
+      border-radius: 4px;
+    }
+    .test-step h3 {
+      margin: 0 0 10px 0;
+      color: #1e293b;
+    }
+    .test-step p {
+      margin: 0;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .device-sizes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .device {
+      background: #e2e8f0;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .device h4 {
+      margin: 0 0 5px 0;
+      color: #1e293b;
+    }
+    .device p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+    .warning {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .success {
+      border-left-color: #10b981;
+      background: #f0fdf4;
+    }
+    .link {
+      color: #4f7cff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    
+    @media (max-width: 767px) {
+      .test-container {
+        padding: 15px;
+        margin: 10px;
+      }
+      .device-sizes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>📱 Test Mobile - Navigation par Onglets</h1>
+    <p>Guide pour tester les améliorations responsive des onglets de section et du conteneur principal.</p>
+    
+    <div class="test-step">
+      <h3>🎯 Objectifs du Test</h3>
+      <p>
+        • Vérifier que les onglets défilent horizontalement de manière fluide<br>
+        • S'assurer que le conteneur principal occupe toute la largeur<br>
+        • Tester sur différentes tailles d'écran mobile
+      </p>
+    </div>
+    
+    <div class="device-sizes">
+      <div class="device">
+        <h4>📱 Petit Mobile</h4>
+        <p>&lt; 480px<br>iPhone SE, anciens Android</p>
+      </div>
+      <div class="device">
+        <h4>📱 Mobile Standard</h4>
+        <p>480px - 767px<br>iPhone 12, Samsung Galaxy</p>
+      </div>
+      <div class="device">
+        <h4>📱 Grand Mobile</h4>
+        <p>768px - 1024px<br>iPhone Pro Max, tablettes</p>
+      </div>
+    </div>
+    
+    <div class="test-step">
+      <h3>📋 Étapes de Test</h3>
+      <p>
+        1. <span class="link" onclick="window.open('http://localhost:5174', '_blank')">Ouvrir l'application</span><br>
+        2. Sélectionner un véhicule pour accéder à l'inventaire<br>
+        3. Observer la navigation par onglets en haut<br>
+        4. Tester le scroll horizontal sur les onglets<br>
+        5. Vérifier que les sections occupent toute la largeur
+      </p>
+    </div>
+    
+    <div class="test-step success">
+      <h3>✅ Tests à Effectuer</h3>
+      <p>
+        <strong>Navigation Onglets :</strong><br>
+        • Scroll fluide de gauche à droite<br>
+        • Onglets visibles et lisibles<br>
+        • Pas de coupure de texte<br>
+        • Touch scroll naturel<br><br>
+        
+        <strong>Conteneur Principal :</strong><br>
+        • Sections en pleine largeur<br>
+        • Pas de débordement horizontal<br>
+        • Marges appropriées<br>
+        • Contenu bien aligné
+      </p>
+    </div>
+    
+    <div class="test-step warning">
+      <h3>⚠️ Points d'Attention</h3>
+      <p>
+        • Tester en mode portrait ET paysage<br>
+        • Vérifier sur différentes résolutions<br>
+        • S'assurer que le scroll est intuitif<br>
+        • Contrôler que rien ne déborde à droite
+      </p>
+    </div>
+    
+    <div class="test-step">
+      <h3>🔧 Outils de Test</h3>
+      <p>
+        <strong>Chrome DevTools :</strong> F12 → Toggle Device Toolbar<br>
+        <strong>Firefox :</strong> F12 → Responsive Design Mode<br>
+        <strong>Safari :</strong> Develop → Responsive Design Mode<br><br>
+        
+        Ou testez directement sur votre mobile en accédant à l'URL locale sur le même réseau.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Ajouter un indicateur de la taille d'écran actuelle
+    function updateScreenSize() {
+      const width = window.innerWidth;
+      const indicator = document.createElement('div');
+      indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #1e293b;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 1000;
+      `;
+      
+      let size = 'Desktop';
+      if (width < 480) size = 'Très petit mobile';
+      else if (width < 768) size = 'Mobile';
+      else if (width < 1024) size = 'Tablette';
+      
+      indicator.textContent = `${width}px - ${size}`;
+      
+      // Supprimer l'ancien indicateur s'il existe
+      const old = document.querySelector('.screen-indicator');
+      if (old) old.remove();
+      
+      indicator.className = 'screen-indicator';
+      document.body.appendChild(indicator);
+    }
+    
+    updateScreenSize();
+    window.addEventListener('resize', updateScreenSize);
+  </script>
+</body>
+</html>

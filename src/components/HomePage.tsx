@@ -3,8 +3,11 @@ import { vehicules } from '../models/vehicules/index';
 import { VehiculeConfigService } from '../firebase/vehicule-config-service';
 import { VehiculeManagementService } from '../firebase/vehicule-management-service';
 import { AdminAuthService } from '../firebase/admin-auth-service';
+import { FamilleService } from '../firebase/famille-service';
 import AdminLoginModal from './AdminLoginModal';
 import type { Vehicule } from '../models/inventaire';
+import type { FamilleConfig } from '../firebase/famille-service';
+import type { VehiculeMetadata } from '../firebase/vehicule-management-service';
 
 interface Props {
   onSelectVehicule: (vehiculeId: string) => void;
@@ -18,6 +21,8 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
   const [loading, setLoading] = useState(true);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [famillesMap, setFamillesMap] = useState<Map<string, FamilleConfig>>(new Map());
+  const [vehiculesMetadata, setVehiculesMetadata] = useState<Map<string, VehiculeMetadata>>(new Map());
 
   // Charger tous les véhicules au démarrage et quand refreshKey change
   useEffect(() => {
@@ -25,6 +30,11 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
     // Initialiser le mot de passe admin par défaut
     AdminAuthService.initializeAdminPassword();
   }, [refreshKey]);
+
+  // Charger les familles au démarrage
+  useEffect(() => {
+    loadFamilles();
+  }, []);
 
   // Exposer la fonction de rechargement au parent
   useEffect(() => {
@@ -34,10 +44,32 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
     }
   }, [onRefreshVehicules]);
 
+  const loadFamilles = async () => {
+    try {
+      // S'assurer que les familles par défaut existent
+      await FamilleService.initializeDefaultFamilles();
+      
+      const familles = await FamilleService.getAllFamilles();
+      const famillesMap = new Map<string, FamilleConfig>();
+      familles.forEach(f => famillesMap.set(f.id, f));
+      setFamillesMap(famillesMap);
+    } catch (error) {
+      console.error('❌ Erreur chargement familles:', error);
+    }
+  };
+
   const loadAllVehicules = async () => {
     try {
+      // D'abord recharger les familles pour avoir les couleurs à jour
+      await loadFamilles();
+      
       // 1. Obtenir l'ordre des véhicules depuis les métadonnées (triés par displayOrder)
       const vehiculeMetadatas = await VehiculeManagementService.getVehiculesWithOrder();
+      
+      // Créer un map des métadonnées pour accès rapide
+      const metadataMap = new Map<string, VehiculeMetadata>();
+      vehiculeMetadatas.forEach(m => metadataMap.set(m.id, m));
+      setVehiculesMetadata(metadataMap);
       
       // 2. Charger TOUS les véhicules depuis Firebase
       const customVehicules = await VehiculeConfigService.getAllVehiculeConfigs();
@@ -46,7 +78,15 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
       const vehiculesMap = new Map<string, Vehicule>();
       customVehicules.forEach((v: Vehicule) => vehiculesMap.set(v.id, v));
       
-      // 3. Créer la liste ordonnée en respectant l'ordre des métadonnées
+      // 3. Assigner la famille "divers" aux véhicules sans famille
+      for (const metadata of vehiculeMetadatas) {
+        if (!metadata.familleId) {
+          await VehiculeManagementService.updateVehiculeFamilleId(metadata.id, 'divers');
+          metadata.familleId = 'divers'; // Mettre à jour localement
+        }
+      }
+      
+      // 5. Créer la liste ordonnée en respectant l'ordre des métadonnées
       const orderedVehicules: Vehicule[] = [];
       
       for (const metadata of vehiculeMetadatas) {
@@ -106,12 +146,25 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
     setShowAdminLogin(false);
   };
 
-  const getVehiculeColor = (nom: string): string => {
-    if (nom.includes('VSAV')) return 'var(--niveau-1)';
-    if (nom.includes('FPT')) return 'var(--niveau-2)';
-    if (nom.includes('CCF')) return 'var(--niveau-3)';
-    if (nom.includes('VTU')) return 'var(--niveau-4)';
-    return 'var(--niveau-5)';
+  const getVehiculeColor = (vehiculeId: string): string => {
+    // Récupérer les métadonnées du véhicule pour obtenir sa familleId
+    const metadata = vehiculesMetadata.get(vehiculeId);
+    if (metadata?.familleId) {
+      // Récupérer la couleur de la famille
+      const famille = famillesMap.get(metadata.familleId);
+      if (famille?.couleur) {
+        return famille.couleur;
+      }
+    }
+    
+    // Utiliser la famille "divers" par défaut si pas de famille assignée
+    const familleParDefaut = famillesMap.get('divers');
+    if (familleParDefaut?.couleur) {
+      return familleParDefaut.couleur;
+    }
+    
+    // Couleur de secours si même la famille "divers" n'existe pas
+    return '#6b7280';
   };
 
   return (
@@ -157,7 +210,7 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
               key={vehicule.id}
               className="vehicule-card"
               onClick={() => handleVehiculeClick(vehicule.id)}
-              style={{ '--vehicule-color': getVehiculeColor(vehicule.nom) } as React.CSSProperties}
+              style={{ '--vehicule-color': getVehiculeColor(vehicule.id) } as React.CSSProperties}
             >
             <div className="vehicule-info">
               <h3 className="vehicule-nom">{vehicule.nom}</h3>

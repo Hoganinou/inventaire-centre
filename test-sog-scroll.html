@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Responsive SOG - Scroll Horizontal</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+      margin: 0;
+    }
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .test-step {
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8fafc;
+      border-left: 4px solid #4f7cff;
+      border-radius: 4px;
+    }
+    .test-step h3 {
+      margin: 0 0 10px 0;
+      color: #1e293b;
+    }
+    .test-step p {
+      margin: 0;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    .device-sizes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .device {
+      background: #e2e8f0;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .device h4 {
+      margin: 0 0 5px 0;
+      color: #1e293b;
+    }
+    .device p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+    .warning {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+    .success {
+      border-left-color: #10b981;
+      background: #f0fdf4;
+    }
+    .link {
+      color: #4f7cff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .problem {
+      border-left-color: #ef4444;
+      background: #fef2f2;
+    }
+    
+    @media (max-width: 767px) {
+      .test-container {
+        padding: 15px;
+        margin: 10px;
+      }
+      .device-sizes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>📊 Test Responsive SOG - Scroll Horizontal</h1>
+    <p>Guide pour tester les corrections du scroll horizontal du tableau SOG (État Opérationnel des Véhicules).</p>
+    
+    <div class="test-step problem">
+      <h3>⚠️ Problème Identifié</h3>
+      <p>
+        <strong>Symptôme :</strong> Le tableau SOG ne peut pas défiler horizontalement sur mobile<br>
+        <strong>Cause :</strong> CSS global avec <code>overflow-x: hidden</code> qui bloque le scroll<br>
+        <strong>Impact :</strong> Contenu tronqué, colonnes inaccessibles sur petits écrans
+      </p>
+    </div>
+    
+    <div class="device-sizes">
+      <div class="device">
+        <h4>📱 Mobile Portrait</h4>
+        <p>320px - 600px<br>Mode cartes</p>
+      </div>
+      <div class="device">
+        <h4>📱 Mobile Paysage</h4>
+        <p>600px - 768px<br>Tableau scrollable</p>
+      </div>
+      <div class="device">
+        <h4>📱 Tablette</h4>
+        <p>768px - 992px<br>Tableau complet</p>
+      </div>
+      <div class="device">
+        <h4>💻 Desktop</h4>
+        <p>&gt; 992px<br>Tableau complet</p>
+      </div>
+    </div>
+    
+    <div class="test-step">
+      <h3>🔧 Corrections Appliquées</h3>
+      <p>
+        <strong>1. Container SOG :</strong><br>
+        • <code>overflow-x: auto !important</code> pour forcer le scroll<br>
+        • <code>-webkit-overflow-scrolling: touch</code> pour iOS<br>
+        • <code>width: 100vw</code> sur mobile pour utiliser toute la largeur<br><br>
+        
+        <strong>2. Table Container :</strong><br>
+        • Scroll horizontal activé avec indicateur visuel<br>
+        • Marges négatives pour compenser le padding<br>
+        • <code>min-width</code> adaptative selon la taille d'écran<br><br>
+        
+        <strong>3. Media Queries :</strong><br>
+        • 992px+ : Tableau normal<br>
+        • 768px-992px : Tableau avec scroll horizontal<br>
+        • 601px-768px : Tableau compact avec scroll<br>
+        • &lt;600px : Affichage en cartes
+      </p>
+    </div>
+    
+    <div class="test-step">
+      <h3>📋 Test Procédure</h3>
+      <p>
+        1. <span class="link" onclick="window.open('http://localhost:5174', '_blank')">Ouvrir l'application</span><br>
+        2. Cliquer sur "📊 État Opérationnel" pour accéder au SOG<br>
+        3. Réduire la fenêtre à différentes largeurs<br>
+        4. Vérifier le scroll horizontal sur chaque breakpoint<br>
+        5. Tester sur un vrai appareil mobile si possible
+      </p>
+    </div>
+    
+    <div class="test-step success">
+      <h3>✅ Critères de Validation</h3>
+      <p>
+        <strong>Desktop (>992px) :</strong><br>
+        ✓ Tableau complet visible sans scroll<br>
+        ✓ Toutes les colonnes affichées<br><br>
+        
+        <strong>Tablette (768px-992px) :</strong><br>
+        ✓ Tableau avec scroll horizontal fluide<br>
+        ✓ Indicateur "← Faites défiler →" visible<br>
+        ✓ Touch scroll fonctionne<br><br>
+        
+        <strong>Mobile Paysage (601px-768px) :</strong><br>
+        ✓ Tableau compact mais scrollable<br>
+        ✓ Certaines colonnes masquées pour optimiser l'espace<br>
+        ✓ Scroll horizontal fonctionne parfaitement<br><br>
+        
+        <strong>Mobile Portrait (<600px) :</strong><br>
+        ✓ Affichage en cartes individuelles<br>
+        ✓ Toutes les informations accessibles<br>
+        ✓ Pas de scroll horizontal nécessaire
+      </p>
+    </div>
+    
+    <div class="test-step warning">
+      <h3>⚠️ Points de Vérification</h3>
+      <p>
+        • <strong>Scroll fluide :</strong> Le tableau doit défiler sans à-coups<br>
+        • <strong>Contenu visible :</strong> Toutes les colonnes importantes accessibles<br>
+        • <strong>Indicateur scroll :</strong> L'utilisateur doit comprendre qu'il peut défiler<br>
+        • <strong>Touch friendly :</strong> Le scroll tactile doit être naturel<br>
+        • <strong>Breakpoints :</strong> Les changements doivent être fluides entre les tailles
+      </p>
+    </div>
+    
+    <div class="test-step">
+      <h3>🐛 Debugging</h3>
+      <p>
+        <strong>Si le scroll ne fonctionne pas :</strong><br>
+        1. Ouvrir DevTools → Elements<br>
+        2. Inspecter <code>.sog-container</code> et <code>.sog-table-container</code><br>
+        3. Vérifier que <code>overflow-x: auto</code> est appliqué<br>
+        4. Contrôler que le parent n'a pas <code>overflow: hidden</code><br>
+        5. Tester avec <code>!important</code> si nécessaire
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Indicateur de taille d'écran
+    function updateScreenSize() {
+      const width = window.innerWidth;
+      const indicator = document.createElement('div');
+      indicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #1e293b;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 1000;
+      `;
+      
+      let behavior = '';
+      if (width > 992) behavior = 'Tableau complet';
+      else if (width > 768) behavior = 'Tableau + scroll';
+      else if (width > 600) behavior = 'Tableau compact';
+      else behavior = 'Mode cartes';
+      
+      indicator.textContent = `${width}px - ${behavior}`;
+      
+      const old = document.querySelector('.screen-indicator');
+      if (old) old.remove();
+      
+      indicator.className = 'screen-indicator';
+      document.body.appendChild(indicator);
+    }
+    
+    updateScreenSize();
+    window.addEventListener('resize', updateScreenSize);
+  </script>
+</body>
+</html>
