@@ -9,6 +9,9 @@ import SOGPage from './components/SOGPage'
 import { vehicules } from './models/vehicules/index'
 import { VehiculeConfigService } from './firebase/vehicule-config-service'
 import type { Vehicule } from './models/inventaire'
+import { handleVersionCheck, getVersionInfo } from './utils/version'
+import UpdateNotification from './components/UpdateNotification'
+import { registerServiceWorker } from './utils/cache'
 
 // Fonction utilitaire pour lire les paramètres d'URL
 function getUrlParams() {
@@ -32,6 +35,15 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       setIsLoading(true);
+      
+      // Vérifier les mises à jour de version
+      handleVersionCheck();
+      
+      // Enregistrer le service worker pour la gestion du cache
+      registerServiceWorker();
+      
+      // Log des informations de version (pour debug)
+      console.log('📱 App Info:', getVersionInfo());
       
       // Charger tous les véhicules
       await loadAllVehicules();
@@ -215,6 +227,9 @@ function App() {
           )}
         </>
       )}
+      
+      {/* Composant de notification de mise à jour */}
+      <UpdateNotification />
     </div>
   )
 }

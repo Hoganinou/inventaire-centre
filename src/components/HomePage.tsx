@@ -5,6 +5,7 @@ import { VehiculeManagementService } from '../firebase/vehicule-management-servi
 import { AdminAuthService } from '../firebase/admin-auth-service';
 import { FamilleService } from '../firebase/famille-service';
 import AdminLoginModal from './AdminLoginModal';
+import { APP_VERSION, BUILD_NUMBER } from '../utils/version';
 import type { Vehicule } from '../models/inventaire';
 import type { FamilleConfig } from '../firebase/famille-service';
 import type { VehiculeMetadata } from '../firebase/vehicule-management-service';
@@ -236,10 +237,6 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
             <span>Sauvegarde automatique dans le cloud</span>
           </div>
         </div>
-
-        <div className="version-info">
-          <span>Version 2.1</span>
-        </div>
       </div>
 
       <AdminLoginModal
@@ -247,6 +244,13 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
         onSuccess={handleAdminLoginSuccess}
         onCancel={handleAdminLoginCancel}
       />
+      
+      {/* Footer avec version */}
+      <footer className="app-footer">
+        <div className="version-info">
+          Version {APP_VERSION} (build {BUILD_NUMBER}) • {new Date().toLocaleDateString('fr-FR')} - © 2025 Inventaire Caserne - CATTINI Julien
+        </div>
+      </footer>
     </div>
   );
 };

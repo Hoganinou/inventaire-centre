@@ -1,13 +1,18 @@
 {
   "name": "inventaire_caserne",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/update-version.cjs",
     "build": "tsc -b && vite build",
+    "predeploy": "node scripts/update-version.cjs",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:version": "node scripts/deploy-with-version.cjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "version:update": "node scripts/update-version.cjs"
   },
   "dependencies": {
     "firebase": "^12.1.0",

@@ -4528,6 +4528,17 @@ label {
 
 /* Optimisations pour mobile */
 @media (max-width: 767px) {
+  .inventaire-container {
+    padding: 0.3rem;
+    padding-bottom: 1.5rem;
+  }
+  
+  .section-panel {
+    padding: 0.5rem 0.4rem 0.6rem 0.4rem;
+    margin-bottom: 0.6rem;
+    border-radius: 0.4rem;
+  }
+  
   .section-tabs {
     padding: 0 0.5rem;
     gap: 0.3rem;
@@ -4572,6 +4583,23 @@ label {
     margin-right: 0;
     padding: 0.5rem 0.4rem 0.6rem 0.4rem;
     overflow-x: hidden;
+  }
+  
+  .tab-check {
+    width: 0.9rem;
+    height: 0.9rem;
+    top: -0.15rem;
+    right: -0.15rem;
+    font-size: 0.55rem;
+  }
+  
+  .section-header-static {
+    font-size: 0.95rem;
+    padding: 0.6rem 0.5rem;
+  }
+  
+  .section-progress {
+    font-size: 0.8rem;
   }
   
   .materiel-row {
@@ -6277,6 +6305,36 @@ label {
   .custom-section-actions {
     width: 100%;
     justify-content: space-between;
+  }
+}
+
+/* Footer avec version */
+.app-footer {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid #e0e0e0;
+  backdrop-filter: blur(10px);
+  padding: 12px 0;
+  margin-top: 2rem;
+}
+
+.version-info {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+
+
+@media (max-width: 768px) {
+  .app-footer {
+    padding: 8px 0;
+    margin-top: 1.5rem;
+  }
+  
+  .version-info {
+    font-size: 0.7rem;
   }
 }
 
