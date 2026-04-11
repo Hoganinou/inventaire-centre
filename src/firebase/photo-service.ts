@@ -41,7 +41,6 @@ export class PhotoService {
       
       // Obtenir l'URL de téléchargement
       const downloadURL = await getDownloadURL(snapshot.ref);
-      console.log(`✅ Photo uploadée: ${downloadURL}`);
       
       return downloadURL;
     } catch (error) {

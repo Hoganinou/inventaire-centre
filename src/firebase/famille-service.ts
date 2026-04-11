@@ -119,7 +119,6 @@ class FamilleServiceClass {
         this.saveFamille(famille)
       );
       await Promise.all(promises);
-      console.log('✅ Familles par défaut initialisées');
     } catch (error) {
       console.error('❌ Erreur initialisation familles par défaut:', error);
     }
@@ -134,7 +133,6 @@ class FamilleServiceClass {
         dateModification: new Date()
       };
       await setDoc(docRef, familleData);
-      console.log('✅ Famille sauvegardée:', famille.nom);
       return true;
     } catch (error) {
       console.error('❌ Erreur sauvegarde famille:', error);
@@ -183,7 +181,6 @@ class FamilleServiceClass {
   async deleteFamille(familleId: string): Promise<boolean> {
     try {
       await deleteDoc(doc(db, this.collectionName, familleId));
-      console.log('✅ Famille supprimée:', familleId);
       return true;
     } catch (error) {
       console.error('❌ Erreur suppression famille:', error);
@@ -203,7 +200,6 @@ class FamilleServiceClass {
       });
 
       await Promise.all(updatePromises);
-      console.log('✅ Ordre des familles mis à jour');
       return true;
     } catch (error) {
       console.error('❌ Erreur mise à jour ordre familles:', error);

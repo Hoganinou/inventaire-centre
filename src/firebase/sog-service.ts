@@ -12,6 +12,7 @@ import type { InventaireRecord } from '../models/inventaire-record';
 import { vehicules } from '../models/vehicules';
 import { VehiculeConfigService } from './vehicule-config-service';
 import { VehiculeManagementService } from './vehicule-management-service';
+import { SOGManualService } from './sog-manual-service';
 import MensuelService from './mensuel-service';
 import type { Vehicule } from '../models/inventaire';
 
@@ -72,6 +73,9 @@ export const generateSOGData = async (): Promise<SOGData> => {
     }
   }
   
+  // Charger toutes les données manuelles SOG en une seule fois
+  const allManualData = await SOGManualService.getAllManualData();
+  
   // Pour chaque véhicule visible
   for (const vehiculeConfig of visibleVehicules) {
     const vehiculeId = vehiculeConfig.id;
@@ -111,39 +115,102 @@ export const generateSOGData = async (): Promise<SOGData> => {
         };
         
         // Utiliser directement les défauts sauvegardés (déjà calculés par getDefauts lors de la sauvegarde)
-        defauts = (data.defauts || []).map(defaut => ({
-          chemin: defaut.chemin,
-          nom: defaut.nom,
-          details: defaut.details,
-          dateDetection: dateInventaire
-        }));
+        defauts = (data.defauts || []).map(defaut => {
+          // Générer des détails si absents (rétrocompatibilité avec anciens inventaires)
+          let details = defaut.details;
+          if (!details) {
+            if (defaut.present === false) {
+              details = 'Absent';
+            } else if (defaut.present === true && defaut.fonctionne === false) {
+              details = 'Présent mais ne fonctionne pas';
+            }
+          }
+          
+          // Extraire quantite/quantiteAttendue depuis details (format "X/Y")
+          let quantite: number | undefined;
+          let quantiteAttendue: number | undefined;
+          if (details) {
+            const matchQuantite = details.match(/^(?:Trouvé\s+)?(\d+)\/(\d+)/);
+            if (matchQuantite) {
+              quantite = parseInt(matchQuantite[1]);
+              quantiteAttendue = parseInt(matchQuantite[2]);
+            }
+          }
+          
+          return {
+            chemin: defaut.chemin,
+            nom: defaut.nom,
+            details,
+            dateDetection: dateInventaire,
+            manuel: false,
+            ...(quantite !== undefined && { quantite }),
+            ...(quantiteAttendue !== undefined && { quantiteAttendue })
+          };
+        });
         
         statut = defauts.length > 0 ? 'DEFAUT' : 'OK';
       }
 
-      // Récupérer le dernier contrôle mensuel
-      let dernierMensuel: any = undefined;
-      try {
-        const mensuel = await MensuelService.getDernierMensuel(vehiculeId);
-        if (mensuel) {
-          dernierMensuel = {
-            date: mensuel.dateMensuel,
-            agent: mensuel.agent,
-            statut: mensuel.statut,
-            kilometres: mensuel.kilometres,
-            defautsCount: mensuel.defauts.length
-          };
+      // Fusionner avec les données manuelles du SOG
+      const manualData = allManualData.get(vehiculeId);
+      let observationsSOG: import('../models/sog').SOGObservation[] = [];
+      
+      if (manualData) {
+        // Filtrer les défauts d'inventaire résolus
+        if (manualData.resolvedDefauts && manualData.resolvedDefauts.length > 0) {
+          defauts = defauts.filter(d => 
+            !manualData.resolvedDefauts.some(r => r.chemin === d.chemin && r.nom === d.nom)
+          );
         }
-      } catch (mensuelError) {
-        console.error(`Erreur récupération mensuel pour ${vehiculeId}:`, mensuelError);
+        // Ajouter les défauts manuels
+        if (manualData.defautsManuels && manualData.defautsManuels.length > 0) {
+          defauts = [...defauts, ...manualData.defautsManuels];
+        }
+        observationsSOG = manualData.observationsSOG || [];
+        
+        // Appliquer l'override de l'observation d'inventaire si défini
+        if (dernierInventaire && manualData.observationOverride !== undefined && manualData.observationOverride !== null) {
+          dernierInventaire.observation = manualData.observationOverride || undefined;
+        }
+      }
+
+      // Recalculer le statut après filtrage des défauts résolus et ajout manuels
+      if (dernierInventaire || defauts.length > 0) {
+        statut = defauts.length > 0 ? 'DEFAUT' : 'OK';
+      }
+
+      // Récupérer le dernier contrôle mensuel seulement si activé
+      let dernierMensuel: any = undefined;
+      const vehiculeMetadata = metadataMap.get(vehiculeId);
+      const mensuelActif = vehiculeMetadata?.mensuelActif !== false; // Actif par défaut
+      const familleId = vehiculeMetadata?.familleId || undefined;
+      
+      if (mensuelActif) {
+        try {
+          const mensuel = await MensuelService.getDernierMensuel(vehiculeId);
+          if (mensuel) {
+            dernierMensuel = {
+              date: mensuel.dateMensuel,
+              agent: mensuel.agent,
+              statut: mensuel.statut,
+              kilometres: mensuel.kilometres,
+              defautsCount: mensuel.defauts.length
+            };
+          }
+        } catch (mensuelError) {
+          console.error(`Erreur récupération mensuel pour ${vehiculeId}:`, mensuelError);
+        }
       }
       
       sogVehicules.push({
         vehiculeId,
         vehiculeName: vehiculeConfig.nom,
+        familleId,
+        mensuelActif,
         dernierInventaire,
         dernierMensuel,
         defauts,
+        observationsSOG,
         statut
       });
       
@@ -151,10 +218,15 @@ export const generateSOGData = async (): Promise<SOGData> => {
       console.error(`Erreur lors de la récupération des données pour ${vehiculeId}:`, error);
       
       // Ajouter le véhicule avec un statut d'erreur
+      const errorVehiculeMetadata = metadataMap.get(vehiculeId);
+      const errorMensuelActif = errorVehiculeMetadata?.mensuelActif !== false;
+      
       sogVehicules.push({
         vehiculeId,
         vehiculeName: vehiculeConfig.nom || vehiculeId,
+        mensuelActif: errorMensuelActif,
         defauts: [],
+        observationsSOG: [],
         statut: 'NON_VERIFIE'
       });
     }

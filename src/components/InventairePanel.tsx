@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 // QRCodeCanvas supprimé car plus utilisé
 import type { Vehicule, Section, Materiel } from '../models/inventaire';
 import { InventaireService } from '../firebase/inventaire-service';
+import { SOGManualService } from '../firebase/sog-manual-service';
 import { PhotoService } from '../firebase/photo-service';
 import type { InventaireRecord } from '../models/inventaire-record';
 import PhotoInspectionItem from './PhotoInspectionItem';
@@ -29,18 +30,18 @@ const SectionPanel: React.FC<{
           <div className={`materiel-row niveau-${niveau}-materiel`} key={m.id}>
             <span>{m.nom}</span>
             <div className="controls">
-              {/* Afficher la checkbox Présent pour tous les types checkbox */}
+              {/* Afficher la checkbox OK pour tous les types checkbox */}
               {(m.type === 'checkbox-presence' || m.type === 'checkbox-fonction' || m.type === 'checkbox' || !m.type) && (
                 <label>
-                  Présent
+                  OK
                   <input type="checkbox" checked={m.estPresent} onChange={() => updateSection(path, mIdx, 'estPresent')} />
                 </label>
               )}
               {/* Afficher la checkbox Fonctionne seulement pour checkbox-fonction et checkbox (legacy) */}
               {(m.type === 'checkbox-fonction' || m.type === 'checkbox' || (!m.type && m.hasOwnProperty('fonctionne'))) && (
-                <label>
+                <label className={!m.estPresent ? 'label-disabled' : ''}>
                   Fonctionne
-                  <input type="checkbox" checked={m.fonctionne} onChange={() => updateSection(path, mIdx, 'fonctionne')} />
+                  <input type="checkbox" checked={m.fonctionne} onChange={() => updateSection(path, mIdx, 'fonctionne')} disabled={!m.estPresent} />
                 </label>
               )}
             </div>
@@ -142,39 +143,49 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
               chemin: path.join(' > '),
               nom: m.nom,
               present: m.estPresent ?? false,
+              details: 'Absent',
             });
           }
         }
         // Si le matériel a un type checkbox-fonction (présence ET fonction)
         else if (m.type === 'checkbox-fonction') {
           if (!m.estPresent || !m.fonctionne) {
+            const isPresent = m.estPresent ?? false;
+            const isFonctionnel = m.fonctionne ?? false;
             defauts.push({
               chemin: path.join(' > '),
               nom: m.nom,
-              present: m.estPresent ?? false,
-              fonctionne: m.fonctionne ?? false,
+              present: isPresent,
+              fonctionne: isFonctionnel,
+              details: !isPresent ? 'Absent' : (!isFonctionnel ? 'Présent mais ne fonctionne pas' : undefined),
             });
           }
         }
         // Legacy : Si le matériel a SEULEMENT fonctionne (sans estPresent), on vérifie seulement fonctionne
-        else if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
+        // MAIS on exclut les matériels qui ont un type défini (pour éviter les conflits)
+        else if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent') && !m.type) {
           if (!m.fonctionne) {
             defauts.push({
               chemin: path.join(' > '),
               nom: m.nom,
               present: true, // Il est présent mais ne fonctionne pas
               fonctionne: m.fonctionne ?? false,
+              details: 'Présent mais ne fonctionne pas',
             });
           }
         }
         // Legacy : Si le matériel a les deux propriétés estPresent ET fonctionne
-        else if (m.hasOwnProperty('fonctionne') && m.hasOwnProperty('estPresent')) {
+        // MAIS on exclut les matériels qui ont un type défini (pour éviter les conflits)
+        else if (m.hasOwnProperty('fonctionne') && m.hasOwnProperty('estPresent') && !m.type) {
           if (!m.estPresent || !m.fonctionne) {
+            const isPresent = m.estPresent ?? false;
+            const isFonctionnel = m.fonctionne ?? false;
             defauts.push({
               chemin: path.join(' > '),
               nom: m.nom,
-              present: m.estPresent ?? false,
-              fonctionne: m.fonctionne ?? false,
+              present: isPresent,
+              fonctionne: isFonctionnel,
+              details: !isPresent ? 'Absent' : (!isFonctionnel ? 'Présent mais ne fonctionne pas' : undefined),
             });
           }
         } else {
@@ -190,7 +201,7 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
                 chemin: path.join(' > '),
                 nom: m.nom,
                 present: isVerified && quantiteReelle >= quantiteAttendue,
-                details: isVerified ? `Trouvé: ${quantiteReelle}/${quantiteAttendue}` : 'Non vérifié'
+                details: isVerified ? `${quantiteReelle}/${quantiteAttendue}` : 'Non vérifié'
               });
             }
           } else if (m.type === 'select' && (!m.valeur || m.valeur === '')) {
@@ -206,6 +217,28 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
               present: false,
               details: 'Non coché (OK)'
             });
+          } else if (m.type === 'presence-teste') {
+            // Type présence + testé : 3 états possibles
+            // valeur = 'ok' -> présent (mais non testé en fonctionnement)
+            // valeur = 'teste' -> présent ET testé en fonctionnement
+            // valeur = '' ou undefined -> non vérifié
+            if (!m.valeur || m.valeur === '') {
+              defauts.push({
+                chemin: path.join(' > '),
+                nom: m.nom,
+                present: false,
+                details: 'Non vérifié'
+              });
+            } else if (m.valeur === 'ok') {
+              // Présent mais non testé - on le signale comme info (pas un défaut critique)
+              defauts.push({
+                chemin: path.join(' > '),
+                nom: m.nom,
+                present: true,
+                details: 'Présent — Non testé'
+              });
+            }
+            // Si valeur === 'teste' -> tout est bon, pas de défaut
           } else if (m.type === 'niveau' && (m.valeur === 'Bas' || m.valeur === 'Vide' || !m.valeur)) {
             defauts.push({
               chemin: path.join(' > '),
@@ -306,6 +339,43 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
   
   // États pour l'authentification
   const [authenticatedUser, setAuthenticatedUser] = useState<User | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Filtrer les utilisateurs selon la saisie
+  const filteredUsers = useMemo(() => {
+    const excluded = ['admin', 'test'];
+    const visible = allUsers.filter(u => !excluded.includes(u.name.toLowerCase()));
+    if (!agent.trim()) return visible;
+    const search = agent.toLowerCase();
+    return visible.filter(u => u.name.toLowerCase().includes(search));
+  }, [agent, allUsers]);
+
+  // Charger la liste des utilisateurs pour l'autocomplétion
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const { AuthService } = await import('../firebase/auth-service');
+        const users = await AuthService.getAllUsers();
+        setAllUsers(users);
+      } catch (error) {
+        console.error('❌ Erreur chargement utilisateurs:', error);
+      }
+    };
+    loadUsers();
+  }, []);
+
+  // Fermer les suggestions au clic en dehors
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Protection contre la fermeture de page pendant l'envoi
   useEffect(() => {
@@ -407,7 +477,12 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       const copy = JSON.parse(JSON.stringify(prev));
       let section = findSectionByPath(copy, pathArr);
       if (section && section.materiels) {
-        section.materiels[materielIdx][field] = !section.materiels[materielIdx][field];
+        const materiel = section.materiels[materielIdx];
+        materiel[field] = !materiel[field];
+        // Si on décoche "OK" (estPresent), remettre fonctionne à false
+        if (field === 'estPresent' && !materiel.estPresent && materiel.hasOwnProperty('fonctionne')) {
+          materiel.fonctionne = false;
+        }
       }
       return copy;
     });
@@ -420,10 +495,21 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       const copy = JSON.parse(JSON.stringify(prev));
       let section = findSectionByPath(copy, pathArr);
       if (section && section.materiels) {
-        section.materiels[materielIdx].valeur = valeur;
+        const materiel = section.materiels[materielIdx];
+        materiel.valeur = valeur;
         // Pour compatibilité, on peut aussi mettre à jour estPresent/fonctionne si type checkbox
         if (typeof valeur === 'boolean') {
-          section.materiels[materielIdx].estPresent = valeur;
+          materiel.estPresent = valeur;
+        }
+        // Pour type checkbox-ok, s'assurer que la valeur est bien booléenne
+        if (materiel.type === 'checkbox-ok') {
+          materiel.valeur = !!valeur; // Force la conversion en boolean
+          materiel.estPresent = !!valeur; // Assurer la cohérence
+        }
+        // Pour type presence-teste, gérer les 3 états
+        if (materiel.type === 'presence-teste') {
+          materiel.valeur = valeur; // 'ok', 'teste' ou ''
+          materiel.estPresent = valeur === 'ok' || valeur === 'teste';
         }
       }
       return copy;
@@ -548,28 +634,25 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         setTimeout(() => setMessage(''), 3000);
         return;
       }
-      
 
       setMessage('🔄 Vérification de l\'authentification...');
-      
+
       try {
         // Importer le service d'authentification
         const { AuthService } = await import('../firebase/auth-service');
-        
+
         // Tenter l'authentification
         const authenticatedUserResult = await AuthService.authenticateUser(agent, pin);
-        
-        if (authenticatedUserResult) {
 
+        if (authenticatedUserResult) {
           setAuthenticatedUser(authenticatedUserResult);
           setMessage('✅ Authentification réussie ! Envoi en cours...');
-          
+
           // Procéder directement à la soumission avec l'utilisateur authentifié
           setTimeout(() => {
             performSubmission(authenticatedUserResult);
           }, 1000);
         } else {
-
           setMessage('❌ Nom d\'utilisateur ou code PIN incorrect');
           setTimeout(() => setMessage(''), 5000);
         }
@@ -578,7 +661,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         setMessage('❌ Erreur lors de l\'authentification');
         setTimeout(() => setMessage(''), 5000);
       }
-      
+
       return;
     }
     
@@ -786,6 +869,14 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         throw new Error(`Erreur Firebase: ${firebaseError instanceof Error ? firebaseError.message : String(firebaseError)}`);
       }
       
+      // 1b. Nettoyer les données manuelles SOG (défauts manuels, résolus, override observation)
+      try {
+        await SOGManualService.clearAfterInventaire(vehicule.id);
+        console.log('🧹 Données manuelles SOG nettoyées');
+      } catch (cleanError) {
+        console.warn('⚠️ Nettoyage SOG échoué (non bloquant):', cleanError);
+      }
+      
       // 2. Envoi vers Google Sheets (existant)
 
       try {
@@ -882,6 +973,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         }
         if (m.type === 'select') return (m.valeur ?? '') !== '';
         if (m.type === 'checkbox-ok') return m.valeur === true;
+        if (m.type === 'presence-teste') return m.valeur === 'ok' || m.valeur === 'teste';
         if (m.type === 'niveau') return m.valeur && m.valeur !== 'Vide';
         if (m.type === 'etat' || m.type === 'statut-ternaire') return m.valeur && m.valeur !== 'Mauvais';
         if (m.type === 'conformite') return m.valeur === 'Conforme';
@@ -952,17 +1044,27 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       const m = item.materiel;
       // Logique spéciale pour voyant tableau de bord
       if ((m as any).type === 'radio') {
-        // Il y a défaut si valeur === true (voyant allumé)
         return m.valeur === true;
       }
       // Pour les photos : défaut si ni bon état, ni réparé, ni pas de changement
       if (m.type === 'photo') {
         return !m.bonEtat && !m.repare && !m.pasDeChangement;
       }
+      // Pour checkbox-fonction : défaut si absent OU ne fonctionne pas
+      if (m.type === 'checkbox-fonction') {
+        return !m.estPresent || !m.fonctionne;
+      }
+      // Pour presence-teste : défaut si non vérifié, "ok" compte comme info (non testé)
+      if (m.type === 'presence-teste') {
+        return !m.valeur || m.valeur === '' || m.valeur === 'ok';
+      }
       // Pour les matériels qui n'ont QUE "fonctionne"
       if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
-        // Défaut si fonctionne est false (ne fonctionne pas)
         return m.fonctionne === false;
+      }
+      // Legacy : matériels avec estPresent ET fonctionne
+      if (m.hasOwnProperty('fonctionne') && m.hasOwnProperty('estPresent') && !m.type) {
+        return !m.estPresent || !m.fonctionne;
       }
       // Pour les matériels normaux
       if (m.hasOwnProperty('estPresent')) {
@@ -989,6 +1091,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         completed = (m.valeur ?? '') !== '';
       } else if (m.type === 'checkbox-ok') {
         completed = typeof m.valeur === 'boolean';
+      } else if (m.type === 'presence-teste') {
+        completed = m.valeur === 'ok' || m.valeur === 'teste';
       } else if (m.type === 'niveau') {
         completed = (m.valeur ?? '') !== '';
       } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
@@ -1027,6 +1131,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         return (m.valeur ?? '') !== '';
       } else if (m.type === 'checkbox-ok') {
         return typeof m.valeur === 'boolean';
+      } else if (m.type === 'presence-teste') {
+        return m.valeur === 'ok' || m.valeur === 'teste';
       } else if (m.type === 'niveau') {
         return (m.valeur ?? '') !== '';
       } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
@@ -1058,7 +1164,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       // Si tous les items sont complétés, vérifier s'il y a des défauts
       const hasDefauts = sectionHasDefauts(section);
       if (hasDefauts) {
-        return { icon: '⚠️', className: 'tab-check-partial' };
+        return { icon: '⚠', className: 'tab-check-danger' };
       } else {
         return { icon: '✓', className: 'tab-check-complete' };
       }
@@ -1066,7 +1172,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       // Si au moins quelques éléments sont traités, vérifier s'il y a des défauts
       const hasDefauts = sectionHasDefauts(section);
       if (hasDefauts) {
-        return { icon: '⚠️', className: 'tab-check-partial' };
+        return { icon: '⚠', className: 'tab-check-danger' };
       } else {
         return { icon: '○', className: 'tab-check-empty' };
       }
@@ -1142,34 +1248,77 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                   <span className="stat-value">{getDefauts(etat).length}</span>
                 </div>
               </div>
+              {getDefauts(etat).length > 0 && (
+                <div className="summary-defauts-list">
+                  {getDefauts(etat).map((defaut, idx) => (
+                    <div key={idx} className="summary-defaut-item">
+                      <div className="summary-defaut-icon">
+                        {defaut.present === false ? '❌' : (defaut.fonctionne === false ? '🔧' : '⚠️')}
+                      </div>
+                      <div className="summary-defaut-info">
+                        <span className="summary-defaut-nom">{defaut.nom}</span>
+                        {defaut.details && (
+                          <span className="summary-defaut-detail">{defaut.details}</span>
+                        )}
+                        <span className="summary-defaut-chemin">{defaut.chemin}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
               <label className="form-label">
                 <span className="label-text">👤 Nom de l'agent :</span>
-                <input 
-                  type="text" 
-                  value={agent} 
-                  onChange={(e) => setAgent(e.target.value)}
-                  className="form-input"
-                  placeholder="Votre nom"
-                  required
-                  title="Veuillez saisir votre nom"
-                  onInvalid={(e) => {
-                    e.currentTarget.setCustomValidity('Veuillez saisir votre nom');
-                  }}
-                  onInput={(e) => {
-                    e.currentTarget.setCustomValidity('');
-                  }}
-                />
+                <div className="autocomplete-wrapper" ref={suggestionsRef}>
+                  <input 
+                    type="text" 
+                    value={agent} 
+                    onChange={(e) => {
+                      setAgent(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className="form-input"
+                    placeholder="Votre nom"
+                    required
+                    autoComplete="off"
+                    title="Veuillez saisir votre nom"
+                    onInvalid={(e) => {
+                      e.currentTarget.setCustomValidity('Veuillez saisir votre nom');
+                    }}
+                    onInput={(e) => {
+                      e.currentTarget.setCustomValidity('');
+                    }}
+                  />
+                  {showSuggestions && filteredUsers.length > 0 && (
+                    <div className="autocomplete-dropdown">
+                      {filteredUsers.map(user => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className={`autocomplete-item${agent === user.name ? ' selected' : ''}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setAgent(user.name);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          {user.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </label>
             </div>
 
             <div className="form-group">
               <label className="form-label">
-                <span className="label-text">🔐 Code PIN :</span>
-                <input 
-                  type="password" 
+                <span className="label-text">🔑 Code PIN :</span>
+                <input
+                  type="password"
                   value={authenticatedUser ? '****' : pin}
                   onChange={(e) => setPin(e.target.value)}
                   className="form-input"
@@ -1195,7 +1344,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
 
             <div className="form-group">
               <label className="form-label">
-                <span className="label-text">📝 Observations :</span>
+                <span className="label-text"> Observations :</span>
                 <textarea 
                   value={observation} 
                   onChange={(e) => setObservation(e.target.value)}
@@ -1393,7 +1542,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                             />
                           </div>
                         )}
-                        {/* Afficher "Présent" pour les matériels avec checkbox */}
+                        {/* Afficher "OK" pour les matériels avec checkbox */}
                         {(materiel.type === 'checkbox-presence' || materiel.type === 'checkbox-fonction' || materiel.type === 'checkbox' || (!materiel.type && materiel.hasOwnProperty('estPresent'))) && !(materiel.type as any === 'radio') && (
                           <label className="control-checkbox">
                             <input 
@@ -1401,7 +1550,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                               checked={materiel.valeur ?? materiel.estPresent ?? false} 
                               onChange={() => path && updateMaterielValeur(path, item.materielIdx, !(materiel.valeur ?? materiel.estPresent ?? false))} 
                             />
-                            <span className="checkbox-label">Présent</span>
+                            <span className="checkbox-label">OK</span>
                           </label>
                         )}
                         {materiel.type === 'quantite' && (
@@ -1456,11 +1605,33 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                           <label className="control-checkbox">
                             <input 
                               type="checkbox" 
-                              checked={materiel.valeur || false} 
+                              checked={!!materiel.valeur} 
                               onChange={() => path && updateMaterielValeur(path, item.materielIdx, !materiel.valeur)} 
                             />
                             <span className="checkbox-label">OK</span>
                           </label>
+                        )}
+                        
+                        {/* Présence + Testé : 3 boutons OK / Testé */}
+                        {materiel.type === 'presence-teste' && (
+                          <div className="control-presence-teste">
+                            <button
+                              type="button"
+                              className={`btn-presence-teste ${materiel.valeur === 'ok' ? 'active-ok' : ''}`}
+                              onClick={() => path && updateMaterielValeur(path, item.materielIdx, materiel.valeur === 'ok' ? '' : 'ok')}
+                              title="Présent (non testé en fonctionnement)"
+                            >
+                              ✓ OK
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn-presence-teste ${materiel.valeur === 'teste' ? 'active-teste' : ''}`}
+                              onClick={() => path && updateMaterielValeur(path, item.materielIdx, materiel.valeur === 'teste' ? '' : 'teste')}
+                              title="Présent ET testé en fonctionnement"
+                            >
+                              ⚡ Testé
+                            </button>
+                          </div>
                         )}
                         
                         {/* Sélecteur pour niveau (Plein/Moyen/Bas/Vide) */}

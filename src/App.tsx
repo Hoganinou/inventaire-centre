@@ -6,10 +6,11 @@ import InventaireComplete from './components/InventaireComplete'
 import HomePage from './components/HomePage'
 import AdminPanel from './components/AdminPanel'
 import SOGPage from './components/SOGPage'
+import MensuelPanel from './components/MensuelPanel'
 import { vehicules } from './models/vehicules/index'
 import { VehiculeConfigService } from './firebase/vehicule-config-service'
 import type { Vehicule } from './models/inventaire'
-import { handleVersionCheck, getVersionInfo } from './utils/version'
+import { handleVersionCheck } from './utils/version'
 import UpdateNotification from './components/UpdateNotification'
 import { registerServiceWorker } from './utils/cache'
 
@@ -25,8 +26,8 @@ function App() {
   const { vehicule: vehiculeId } = getUrlParams();
   
   // État pour gérer le workflow : 'home', 'recap', 'inventaire', 'termine', 'admin', 'sog'
-  const [currentView, setCurrentView] = useState<'home' | 'recap' | 'inventaire' | 'termine' | 'admin' | 'sog'>('home');
-  const [selectedVehicule, setSelectedVehicule] = useState<Vehicule>(vehicules.EXEMPLE);
+  const [currentView, setCurrentView] = useState<'home' | 'recap' | 'inventaire' | 'termine' | 'admin' | 'sog' | 'mensuel'>('home');
+  const [selectedVehicule, setSelectedVehicule] = useState<Vehicule | null>(null);
   const [allVehicules, setAllVehicules] = useState<Vehicule[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,9 +42,6 @@ function App() {
       
       // Enregistrer le service worker pour la gestion du cache
       registerServiceWorker();
-      
-      // Log des informations de version (pour debug)
-      console.log('📱 App Info:', getVersionInfo());
       
       // Charger tous les véhicules
       await loadAllVehicules();
@@ -140,6 +138,8 @@ function App() {
   };
 
   const handleStartInventaire = async () => {
+    if (!selectedVehicule) return;
+    
     // Recharger la configuration depuis Firebase pour s'assurer d'avoir la dernière version
     try {
       console.log('🔄 Rechargement de la configuration pour:', selectedVehicule.id);
@@ -176,6 +176,10 @@ function App() {
     setCurrentView('sog');
   };
 
+  const handleOpenMensuel = () => {
+    setCurrentView('mensuel');
+  };
+
   return (
     <div>
       {isLoading && (
@@ -198,24 +202,25 @@ function App() {
             />
           )}
           
-          {currentView === 'recap' && (
+          {currentView === 'recap' && selectedVehicule && (
             <RecapPanel 
-              vehicule={selectedVehicule} 
+              vehicule={selectedVehicule!} 
               onStartInventaire={handleStartInventaire}
               onReturnHome={handleReturnHome}
+              onOpenMensuel={handleOpenMensuel}
             />
           )}
           
-          {currentView === 'inventaire' && (
+          {currentView === 'inventaire' && selectedVehicule && (
             <InventairePanel 
-              vehicule={selectedVehicule} 
+              vehicule={selectedVehicule!} 
               onInventaireComplete={handleInventaireComplete}
               onReturnHome={handleReturnHome}
             />
           )}
           
-          {currentView === 'termine' && (
-            <InventaireComplete vehicule={selectedVehicule} />
+          {currentView === 'termine' && selectedVehicule && (
+            <InventaireComplete vehicule={selectedVehicule!} />
           )}
           
           {currentView === 'admin' && (
@@ -224,6 +229,14 @@ function App() {
           
           {currentView === 'sog' && (
             <SOGPage onReturnHome={handleReturnHome} />
+          )}
+          
+          {currentView === 'mensuel' && selectedVehicule && (
+            <MensuelPanel
+              vehicule={selectedVehicule!}
+              onClose={() => setCurrentView('recap')}
+              onMensuelSaved={() => setCurrentView('recap')}
+            />
           )}
         </>
       )}

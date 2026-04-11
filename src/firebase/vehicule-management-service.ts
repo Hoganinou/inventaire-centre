@@ -8,6 +8,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import type { Vehicule } from '../models/inventaire';
+import { VehiculeConfigService } from './vehicule-config-service';
 
 export interface VehiculeMetadata {
   id: string;
@@ -16,6 +17,7 @@ export interface VehiculeMetadata {
   isHidden: boolean;
   displayOrder?: number; // Ordre d'affichage
   familleId?: string; // ID de la famille du véhicule (référence vers familles-config)
+  mensuelActif?: boolean; // Contrôle mensuel activé/désactivé
 }
 
 class VehiculeManagementServiceClass {
@@ -228,7 +230,6 @@ class VehiculeManagementServiceClass {
       // Vérifier que la sauvegarde a bien fonctionné
       const savedMetadata = await this.getVehiculeMetadata(vehiculeId);
       if (savedMetadata?.familleId === familleId) {
-        console.log(`✅ Famille ${familleId} sauvegardée pour ${vehiculeId}`);
         return true;
       } else {
         console.error(`❌ Échec vérification: famille ${savedMetadata?.familleId} != ${familleId}`);
@@ -264,6 +265,53 @@ class VehiculeManagementServiceClass {
     } catch (error) {
       console.error('❌ Erreur regroupement véhicules par famille:', error);
       return {};
+    }
+  }
+
+  // Mettre à jour le statut du contrôle mensuel d'un véhicule
+  async updateVehiculeMensuelActif(vehiculeId: string, mensuelActif: boolean): Promise<boolean> {
+    try {
+      const docRef = doc(db, this.collectionName, vehiculeId);
+      
+      const metadata: Partial<VehiculeMetadata> = {
+        mensuelActif: mensuelActif
+      };
+
+      await setDoc(docRef, metadata, { merge: true });
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur mise à jour contrôle mensuel véhicule:', error);
+      return false;
+    }
+  }
+
+  // Supprimer complètement un véhicule (configuration et métadonnées)
+  async deleteVehicule(vehiculeId: string): Promise<boolean> {
+    try {
+      console.log(`🗑️ Suppression du véhicule: ${vehiculeId}`);
+      
+      // Supprimer les métadonnées
+      const metadataDeleted = await this.deleteVehiculeMetadata(vehiculeId);
+      console.log(`Métadonnées supprimées: ${metadataDeleted}`);
+      
+      // Supprimer la configuration
+      const configDeleted = await VehiculeConfigService.deleteVehiculeConfig(vehiculeId);
+      console.log(`Configuration supprimée: ${configDeleted}`);
+      
+      // Succès si au moins une suppression a réussi
+      const success = metadataDeleted || configDeleted;
+      
+      if (success) {
+        console.log(`✅ Véhicule ${vehiculeId} supprimé avec succès`);
+      } else {
+        console.error(`❌ Échec de la suppression du véhicule ${vehiculeId}`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('❌ Erreur suppression véhicule:', error);
+      return false;
     }
   }
 }

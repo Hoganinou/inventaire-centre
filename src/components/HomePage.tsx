@@ -178,16 +178,6 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
         </p>
         
         <div className="header-actions">
-          {onOpenAdmin && (
-            <button 
-              onClick={handleAdminClick}
-              className="admin-access-btn"
-              title="Accès administration"
-            >
-              ⚙️ Administration
-            </button>
-          )}
-          
           {onOpenSOG && (
             <button 
               onClick={onOpenSOG}
@@ -197,8 +187,6 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
               📊 SOG
             </button>
           )}
-          
-
         </div>
       </div>
 
@@ -223,20 +211,15 @@ const HomePage: React.FC<Props> = ({ onSelectVehicule, onOpenAdmin, onOpenSOG, o
       </div>
 
       <div className="homepage-footer">
-        <div className="footer-info">
-          <div className="info-item">
-            <span className="info-icon">📱</span>
-            <span>Scannez le QR code du véhicule ou sélectionnez directement</span>
-          </div>
-          <div className="info-item">
-            <span className="info-icon">📊</span>
-            <span>Consultez l'historique avant de commencer</span>
-          </div>
-          <div className="info-item">
-            <span className="info-icon">☁️</span>
-            <span>Sauvegarde automatique dans le cloud</span>
-          </div>
-        </div>
+        {onOpenAdmin && (
+          <button 
+            onClick={handleAdminClick}
+            className="admin-access-btn admin-access-btn-footer"
+            title="Accès administration"
+          >
+            ⚙️ Administration
+          </button>
+        )}
       </div>
 
       <AdminLoginModal

@@ -62,6 +62,27 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
+  // États pour le déplacement entre sections
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveItem, setMoveItem] = useState<{
+    type: 'section' | 'materiel';
+    sourcePath: number[];
+    sourceIndex: number;
+    item: Section | Materiel;
+  } | null>(null);
+
+  // États pour la copie entre véhicules
+  const [showCopyToVehicleModal, setShowCopyToVehicleModal] = useState(false);
+  const [copyItem, setCopyItem] = useState<{
+    type: 'section' | 'materiel';
+    sourcePath: number[];
+    sourceIndex: number;
+    item: Section | Materiel;
+    sourceVehicleId: string;
+  } | null>(null);
+  const [selectedDestinationVehicle, setSelectedDestinationVehicle] = useState('');
+  const [destinationVehicleSections, setDestinationVehicleSections] = useState<Section[]>([]);
+
   // Charger tous les véhicules au démarrage
   useEffect(() => {
     loadAllVehicules();
@@ -523,6 +544,284 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
     setExpandedSections(newExpanded);
   };
 
+  // Fonction helper pour rendre les destinations de manière récursive
+  const renderMoveDestinations = (section: Section, path: number[], depth: number): React.ReactNode => {
+    if (!moveItem) return null;
+    
+    const isDisabled = moveItem.type === 'section' && 
+      JSON.stringify(moveItem.sourcePath.slice(0, path.length)) === JSON.stringify(path);
+    
+    return (
+      <div key={`${path.join('-')}`} style={{ marginLeft: `${depth * 1}rem` }}>
+        <button
+          className="move-destination-btn move-destination-sub"
+          onClick={() => moveItemToDestination(path)}
+          disabled={isDisabled}
+        >
+          {'└'.repeat(depth)} 📂 {section.nom}
+        </button>
+        {section.sousSections && section.sousSections.map((subSection, subIndex) => 
+          renderMoveDestinations(subSection, [...path, subIndex], depth + 1)
+        )}
+      </div>
+    );
+  };
+
+  // Fonctions de déplacement entre sections
+  const initiateMoveSection = (sourcePath: number[], sourceIndex: number) => {
+    const sourceSection = findSectionByPath(sections, sourcePath[0], sourcePath.slice(1));
+    if (sourceSection?.sousSections && sourceSection.sousSections[sourceIndex]) {
+      setMoveItem({
+        type: 'section',
+        sourcePath,
+        sourceIndex,
+        item: sourceSection.sousSections[sourceIndex]
+      });
+      setShowMoveModal(true);
+    }
+  };
+
+  const initiateMoveMatériel = (sourcePath: number[], sourceIndex: number) => {
+    const sourceSection = findSectionByPath(sections, sourcePath[0], sourcePath.slice(1));
+    if (sourceSection?.materiels && sourceSection.materiels[sourceIndex]) {
+      setMoveItem({
+        type: 'materiel',
+        sourcePath,
+        sourceIndex,
+        item: sourceSection.materiels[sourceIndex]
+      });
+      setShowMoveModal(true);
+    }
+  };
+
+  const moveItemToDestination = (destinationPath: number[]) => {
+    if (!moveItem) return;
+
+    const newSections = [...sections];
+    
+    // Trouver et retirer l'élément source
+    const sourceSection = findSectionByPath(newSections, moveItem.sourcePath[0], moveItem.sourcePath.slice(1));
+    if (!sourceSection) return;
+
+    let movedItem: Section | Materiel;
+    
+    if (moveItem.type === 'section' && sourceSection.sousSections) {
+      movedItem = sourceSection.sousSections.splice(moveItem.sourceIndex, 1)[0];
+    } else if (moveItem.type === 'materiel' && sourceSection.materiels) {
+      movedItem = sourceSection.materiels.splice(moveItem.sourceIndex, 1)[0];
+    } else {
+      return;
+    }
+
+    // Trouver la section de destination
+    const destinationSection = findSectionByPath(newSections, destinationPath[0], destinationPath.slice(1));
+    if (!destinationSection) return;
+
+    // Ajouter l'élément à la destination
+    if (moveItem.type === 'section') {
+      if (!destinationSection.sousSections) {
+        destinationSection.sousSections = [];
+      }
+      destinationSection.sousSections.push(movedItem as Section);
+    } else if (moveItem.type === 'materiel') {
+      if (!destinationSection.materiels) {
+        destinationSection.materiels = [];
+      }
+      destinationSection.materiels.push(movedItem as Materiel);
+    }
+
+    setSections(newSections);
+    setHasChanges(true);
+    
+    // Fermer le modal
+    setShowMoveModal(false);
+    setMoveItem(null);
+  };
+
+  // Fonctions pour la copie entre véhicules
+  const initiateCopyToVehicle = (sourcePath: number[], sourceIndex: number, type: 'section' | 'materiel') => {
+    const sourceSection = findSectionByPath(sections, sourcePath[0], sourcePath.slice(1));
+    let item: Section | Materiel | null = null;
+
+    if (type === 'section' && sourceSection?.sousSections) {
+      item = sourceSection.sousSections[sourceIndex];
+    } else if (type === 'materiel' && sourceSection?.materiels) {
+      item = sourceSection.materiels[sourceIndex];
+    }
+
+    if (item && currentVehicule) {
+      setCopyItem({
+        type,
+        sourcePath,
+        sourceIndex,
+        item: JSON.parse(JSON.stringify(item)), // Deep copy pour éviter les références
+        sourceVehicleId: currentVehicule.id
+      });
+      setShowCopyToVehicleModal(true);
+    }
+  };
+
+  // Fonction utilitaire pour générer des IDs uniques
+  const generateUniqueId = (baseId: string, existingIds: string[]): string => {
+    let newId = baseId;
+    let counter = 1;
+    
+    while (existingIds.includes(newId)) {
+      newId = `${baseId}_copie_${counter}`;
+      counter++;
+    }
+    
+    return newId;
+  };
+
+  // Fonction récursive pour récupérer tous les IDs d'une structure
+  const getAllIds = (sections: Section[]): string[] => {
+    const ids: string[] = [];
+    
+    sections.forEach(section => {
+      ids.push(section.id);
+      
+      if (section.materiels) {
+        section.materiels.forEach(materiel => {
+          ids.push(materiel.id);
+        });
+      }
+      
+      if (section.sousSections) {
+        ids.push(...getAllIds(section.sousSections));
+      }
+    });
+    
+    return ids;
+  };
+
+  // Fonction récursive pour mettre à jour tous les IDs d'une section copiée
+  const updateAllIds = (item: Section | Materiel, existingIds: string[]): void => {
+    if ('sousSections' in item || 'materiels' in item) {
+      // C'est une section
+      const section = item as Section;
+      section.id = generateUniqueId(section.id, existingIds);
+      existingIds.push(section.id);
+      
+      if (section.materiels) {
+        section.materiels.forEach(materiel => {
+          materiel.id = generateUniqueId(materiel.id, existingIds);
+          existingIds.push(materiel.id);
+        });
+      }
+      
+      if (section.sousSections) {
+        section.sousSections.forEach(sousSection => {
+          updateAllIds(sousSection, existingIds);
+        });
+      }
+    } else {
+      // C'est un matériel
+      const materiel = item as Materiel;
+      materiel.id = generateUniqueId(materiel.id, existingIds);
+      existingIds.push(materiel.id);
+    }
+  };
+
+  const loadDestinationVehicleSections = async (vehiculeId: string) => {
+    try {
+      // Charger d'abord la configuration personnalisée si elle existe
+      const customConfig = await VehiculeConfigService.getVehiculeConfig(vehiculeId);
+      if (customConfig) {
+        setDestinationVehicleSections(customConfig.sections);
+        return;
+      }
+      
+      // Sinon, charger la configuration par défaut
+      const defaultVehicule = Object.values(vehicules).find(v => v.id === vehiculeId);
+      if (defaultVehicule) {
+        setDestinationVehicleSections(defaultVehicule.sections);
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement sections destination:', error);
+      setDestinationVehicleSections([]);
+    }
+  };
+
+  const copyItemToVehicle = async (destinationVehicleId: string, destinationSectionIndex: number) => {
+    if (!copyItem) return;
+
+    try {
+      setMessage('⏳ Copie en cours...');
+      
+      // Charger la configuration du véhicule de destination
+      const destinationConfig = await VehiculeConfigService.getVehiculeConfig(destinationVehicleId);
+      let destinationSections: Section[];
+      
+      if (destinationConfig) {
+        destinationSections = [...destinationConfig.sections];
+      } else {
+        // Utiliser la configuration par défaut
+        const defaultVehicule = Object.values(vehicules).find(v => v.id === destinationVehicleId);
+        if (!defaultVehicule) {
+          setMessage('❌ Véhicule de destination introuvable');
+          setTimeout(() => setMessage(''), 3000);
+          return;
+        }
+        destinationSections = JSON.parse(JSON.stringify(defaultVehicule.sections));
+      }
+
+      // Créer une copie de l'élément avec des IDs uniques
+      const itemCopy = JSON.parse(JSON.stringify(copyItem.item));
+      const existingIds = getAllIds(destinationSections);
+      updateAllIds(itemCopy, existingIds);
+
+      // Ajouter l'élément copié à la section de destination
+      const destinationSection = destinationSections[destinationSectionIndex];
+      if (!destinationSection) {
+        setMessage('❌ Section de destination invalide');
+        setTimeout(() => setMessage(''), 3000);
+        return;
+      }
+
+      if (copyItem.type === 'section') {
+        if (!destinationSection.sousSections) {
+          destinationSection.sousSections = [];
+        }
+        destinationSection.sousSections.push(itemCopy as Section);
+      } else if (copyItem.type === 'materiel') {
+        if (!destinationSection.materiels) {
+          destinationSection.materiels = [];
+        }
+        destinationSection.materiels.push(itemCopy as Materiel);
+      }
+
+      // Créer le véhicule de destination mis à jour
+      const destinationVehiculeNom = allVehicules.find(v => v.id === destinationVehicleId)?.nom || destinationVehicleId;
+      const updatedDestinationVehicule: Vehicule = {
+        id: destinationVehicleId,
+        nom: destinationVehiculeNom,
+        sections: destinationSections,
+        isCustom: true
+      };
+
+      // Sauvegarder la configuration mise à jour
+      const success = await VehiculeConfigService.saveVehiculeConfig(updatedDestinationVehicule);
+      
+      if (success) {
+        setMessage(`✅ ${copyItem.type === 'section' ? 'Section' : 'Matériel'} copié vers ${destinationVehiculeNom}`);
+        
+        // Fermer la modal
+        setShowCopyToVehicleModal(false);
+        setCopyItem(null);
+        setSelectedDestinationVehicle('');
+        setDestinationVehicleSections([]);
+      } else {
+        setMessage('❌ Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('❌ Erreur copie vers véhicule:', error);
+      setMessage('❌ Erreur lors de la copie');
+    }
+    
+    setTimeout(() => setMessage(''), 4000);
+  };
+
   const removeSection = (sectionIndex: number) => {
     if (!confirm('Supprimer cette section et tous ses matériels ?')) return;
     
@@ -707,6 +1006,58 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
       setMessage('❌ Erreur lors du renommage');
     }
     setTimeout(() => setMessage(''), 3000);
+  };
+
+  const deleteVehicule = async (vehiculeId: string, vehiculeNom: string) => {
+    // Double confirmation pour éviter les suppressions accidentelles
+    const firstConfirm = confirm(
+      `⚠️ ATTENTION: Vous allez supprimer définitivement le véhicule "${vehiculeNom}" (ID: ${vehiculeId}).\n\n` +
+      `Cette action est IRRÉVERSIBLE et supprimera:\n` +
+      `• La configuration personnalisée du véhicule\n` +
+      `• Tous les métadonnées associées\n` +
+      `• L'historique des modifications\n\n` +
+      `Êtes-vous sûr de vouloir continuer ?`
+    );
+    
+    if (!firstConfirm) return;
+    
+    const secondConfirm = confirm(
+      `🔥 DERNIÈRE CONFIRMATION\n\n` +
+      `Tapez le nom du véhicule pour confirmer la suppression:\n` +
+      `Véhicule à supprimer: "${vehiculeNom}"\n\n` +
+      `Voulez-vous vraiment supprimer ce véhicule ?`
+    );
+    
+    if (!secondConfirm) return;
+
+    try {
+      setMessage('⏳ Suppression en cours...');
+      
+      const success = await VehiculeManagementService.deleteVehicule(vehiculeId);
+      
+      if (success) {
+        // Recharger les listes pour refléter la suppression
+        await loadAllVehicules();
+        await loadVehiculeVisibilities();
+        
+        // Si le véhicule supprimé était sélectionné, désélectionner
+        if (selectedVehicule === vehiculeId) {
+          setSelectedVehicule('');
+          setCurrentVehicule(null);
+          setSections([]);
+          setHasChanges(false);
+        }
+        
+        setMessage('✅ Véhicule supprimé avec succès');
+      } else {
+        setMessage('❌ Erreur lors de la suppression du véhicule');
+      }
+    } catch (error) {
+      console.error('❌ Erreur suppression véhicule:', error);
+      setMessage('❌ Erreur lors de la suppression du véhicule');
+    }
+    
+    setTimeout(() => setMessage(''), 5000);
   };
 
   const openDuplicateModal = (vehiculeId: string) => {
@@ -992,6 +1343,28 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
         </div>
         
         <button
+          onClick={() => {
+            const materielPath = path || (subSectionIndex !== undefined ? [sectionIndex, subSectionIndex] : [sectionIndex]);
+            initiateMoveMatériel(materielPath, materielIndex);
+          }}
+          className="admin-btn admin-btn-info"
+          title="Déplacer vers une autre section"
+        >
+          📦
+        </button>
+        
+        <button
+          onClick={() => {
+            const materielPath = path || (subSectionIndex !== undefined ? [sectionIndex, subSectionIndex] : [sectionIndex]);
+            initiateCopyToVehicle(materielPath, materielIndex, 'materiel');
+          }}
+          className="admin-btn admin-btn-success"
+          title="Copier vers un autre véhicule"
+        >
+          🚚
+        </button>
+        
+        <button
           onClick={() => removeMateriel(sectionIndex, materielIndex, subSectionIndex, path)}
           className="admin-btn admin-btn-danger"
           title="Supprimer"
@@ -1221,6 +1594,44 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
             >
               ➕ Matériel
             </button>
+            {isSubSection && (
+              <>
+                <button
+                  onClick={() => {
+                    const sourcePath = pathFromRoot.slice(0, -1); // Chemin parent
+                    const sourceIndex = pathFromRoot[pathFromRoot.length - 1]; // Index dans le parent
+                    initiateMoveSection(sourcePath, sourceIndex);
+                  }}
+                  className="admin-btn admin-btn-info"
+                  title="Déplacer cette sous-section vers une autre section"
+                >
+                  📦
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const sourcePath = pathFromRoot.slice(0, -1); // Chemin parent
+                    const sourceIndex = pathFromRoot[pathFromRoot.length - 1]; // Index dans le parent
+                    initiateCopyToVehicle(sourcePath, sourceIndex, 'section');
+                  }}
+                  className="admin-btn admin-btn-success"
+                  title="Copier cette sous-section vers un autre véhicule"
+                >
+                  🚚
+                </button>
+              </>
+            )}
+            {!isSubSection && (
+              <button
+                onClick={() => {
+                  initiateCopyToVehicle([], sectionIndex, 'section');
+                }}
+                className="admin-btn admin-btn-success"
+                title="Copier cette section vers un autre véhicule"
+              >
+                🚚
+              </button>
+            )}
             <button
               onClick={() => {
                 if (isSubSection) {
@@ -1572,6 +1983,17 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
                   title={vehiculeVisibility[currentVehicule.id] !== false ? "Masquer ce véhicule" : "Afficher ce véhicule"}
                 >
                   {vehiculeVisibility[currentVehicule.id] !== false ? '� Masquer' : '👁️ Afficher'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setShowManageModal(false);
+                    deleteVehicule(currentVehicule.id, currentVehicule.nom);
+                  }}
+                  className="admin-btn admin-btn-danger"
+                  title="Supprimer définitivement ce véhicule"
+                >
+                  🗑️ Supprimer
                 </button>
               </div>
               
@@ -3006,6 +3428,175 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
                 disabled={passwordLoading || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
               >
                 {passwordLoading ? '🔄 Modification...' : '✅ Changer le mot de passe'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de déplacement d'éléments */}
+      {showMoveModal && moveItem && (
+        <div className="admin-modal-overlay">
+          <div className="admin-modal">
+            <div className="admin-modal-header">
+              <h3>
+                📦 Déplacer {moveItem.type === 'section' ? 'la sous-section' : 'le matériel'} "{moveItem.item.nom}"
+              </h3>
+              <button
+                onClick={() => {
+                  setShowMoveModal(false);
+                  setMoveItem(null);
+                }}
+                className="admin-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="admin-modal-body">
+              <p>Sélectionnez la section de destination :</p>
+              <div className="move-destination-list">
+                {sections.map((section, sectionIndex) => (
+                  <div key={section.id} className="move-section-group">
+                    <button
+                      className="move-destination-btn move-destination-main"
+                      onClick={() => moveItemToDestination([sectionIndex])}
+                      disabled={moveItem.type === 'section' && moveItem.sourcePath[0] === sectionIndex && moveItem.sourcePath.length === 1}
+                    >
+                      📁 {section.nom}
+                    </button>
+                    {section.sousSections && section.sousSections.map((subSection, subIndex) => 
+                      renderMoveDestinations(subSection, [sectionIndex, subIndex], 1)
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                onClick={() => {
+                  setShowMoveModal(false);
+                  setMoveItem(null);
+                }}
+                className="admin-btn admin-btn-secondary"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de copie vers un autre véhicule */}
+      {showCopyToVehicleModal && copyItem && (
+        <div className="modal-backdrop" onClick={() => {
+          setShowCopyToVehicleModal(false);
+          setCopyItem(null);
+          setSelectedDestinationVehicle('');
+          setDestinationVehicleSections([]);
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🚚 Copier {copyItem.type === 'section' ? 'la section' : 'le matériel'} "{copyItem.item.nom}"</h2>
+              <button 
+                onClick={() => {
+                  setShowCopyToVehicleModal(false);
+                  setCopyItem(null);
+                  setSelectedDestinationVehicle('');
+                  setDestinationVehicleSections([]);
+                }} 
+                className="modal-close-btn"
+                title="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="copy-source-info">
+                <p><strong>Élément à copier:</strong> {copyItem.item.nom}</p>
+                <p><strong>Type:</strong> {copyItem.type === 'section' ? 'Section' : 'Matériel'}</p>
+                <p><strong>Depuis le véhicule:</strong> {allVehicules.find(v => v.id === copyItem.sourceVehicleId)?.nom}</p>
+              </div>
+              
+              <hr style={{ margin: '1rem 0' }} />
+              
+              <div className="destination-selection">
+                <label htmlFor="destination-vehicle">
+                  Véhicule de destination:
+                </label>
+                <select
+                  id="destination-vehicle"
+                  value={selectedDestinationVehicle}
+                  onChange={async (e) => {
+                    const vehicleId = e.target.value;
+                    setSelectedDestinationVehicle(vehicleId);
+                    if (vehicleId) {
+                      await loadDestinationVehicleSections(vehicleId);
+                    } else {
+                      setDestinationVehicleSections([]);
+                    }
+                  }}
+                  className="admin-select"
+                  style={{ marginBottom: '1rem' }}
+                >
+                  <option value="">-- Sélectionner un véhicule --</option>
+                  {allVehicules
+                    .filter(v => v.id !== copyItem.sourceVehicleId) // Exclure le véhicule source
+                    .map(vehicule => (
+                      <option key={vehicule.id} value={vehicule.id}>
+                        {vehicule.nom}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              
+              {selectedDestinationVehicle && destinationVehicleSections.length > 0 && (
+                <div className="destination-sections">
+                  <label>Ajouter à la section:</label>
+                  <div className="section-list">
+                    {destinationVehicleSections.map((section, index) => (
+                      <div key={section.id} className="section-option">
+                        <button
+                          onClick={() => copyItemToVehicle(selectedDestinationVehicle, index)}
+                          className="admin-btn admin-btn-primary section-choice-btn"
+                          style={{ 
+                            width: '100%', 
+                            textAlign: 'left', 
+                            marginBottom: '0.5rem',
+                            justifyContent: 'flex-start'
+                          }}
+                        >
+                          📁 {section.nom}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {selectedDestinationVehicle && destinationVehicleSections.length === 0 && (
+                <div className="no-sections-message">
+                  <p style={{ color: '#64748b', textAlign: 'center' }}>
+                    Chargement des sections...
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                onClick={() => {
+                  setShowCopyToVehicleModal(false);
+                  setCopyItem(null);
+                  setSelectedDestinationVehicle('');
+                  setDestinationVehicleSections([]);
+                }}
+                className="admin-btn admin-btn-secondary"
+              >
+                Annuler
               </button>
             </div>
           </div>

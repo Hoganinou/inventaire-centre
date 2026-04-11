@@ -8,12 +8,13 @@ export interface Materiel {
   // 'checkbox-presence' (présence seulement), 
   // 'checkbox-fonction' (présence ET fonction),
   // 'checkbox-ok' (simple case à cocher "OK"),
+  // 'presence-teste' (Présent + Testé : OK / Non OK / Testé, avec "Non testé" si pas testé),
   // 'radio' (boutons radio RAS/Défaut),
   // 'quantite' (nombre), 'select' (liste d'options), 'photo' (prise de photo)
   // 'niveau' (Plein/Moyen/Bas/Vide), 'etat' (Bon/Moyen/Mauvais)
   // 'conformite' (Conforme/Non conforme), 'statut-ternaire' (Bon/Moyen/Mauvais)
   // 'date' (sélecteur de date), 'texte-libre' (zone de texte)
-  type?: 'checkbox' | 'checkbox-presence' | 'checkbox-fonction' | 'checkbox-ok' | 'radio' | 'quantite' | 'select' | 'photo' | 'niveau' | 'etat' | 'conformite' | 'statut-ternaire' | 'date' | 'texte-libre';
+  type?: 'checkbox' | 'checkbox-presence' | 'checkbox-fonction' | 'checkbox-ok' | 'presence-teste' | 'radio' | 'quantite' | 'select' | 'photo' | 'niveau' | 'etat' | 'conformite' | 'statut-ternaire' | 'date' | 'texte-libre';
   options?: string[]; // Pour les listes déroulantes (ex: plein/moitié/vide) et labels des boutons radio
   valeur?: any; // Valeur saisie (boolean, number, string...) ou quantité attendue pour type 'quantite'
   quantiteReelle?: number; // Quantité réellement trouvée lors du contrôle (pour type 'quantite')

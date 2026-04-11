@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { InventaireService } from '../firebase/inventaire-service';
+import { SOGManualService } from '../firebase/sog-manual-service';
+import { VehiculeManagementService } from '../firebase/vehicule-management-service';
+import type { VehiculeMetadata } from '../firebase/vehicule-management-service';
 import InventaireModal from './InventaireModal';
-import MensuelPanel from './MensuelPanel';
 import type { InventaireSummary, InventaireRecord } from '../models/inventaire-record';
 import type { Vehicule } from '../models/inventaire';
 
@@ -9,13 +11,14 @@ interface Props {
   vehicule: Vehicule;
   onStartInventaire: () => void;
   onReturnHome?: () => void;
+  onOpenMensuel?: () => void;
 }
 
-const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome }) => {
+const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome, onOpenMensuel }) => {
   const [summary, setSummary] = useState<InventaireSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInventaire, setSelectedInventaire] = useState<InventaireRecord | null>(null);
-  const [showMensuelPanel, setShowMensuelPanel] = useState(false);
+  const [vehiculeMetadata, setVehiculeMetadata] = useState<VehiculeMetadata | null>(null);
 
   // Fonction pour extraire les photos de tous les matériels des sections
   const extrairePhotosMateriels = (sections?: any[]): { [materielId: string]: { photos: string[], nom: string } } => {
@@ -104,11 +107,48 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
     const loadSummary = async () => {
       try {
         setLoading(true);
-        const data = await InventaireService.getInventaireSummary(vehicule.id);
+        const [data, manualData] = await Promise.all([
+          InventaireService.getInventaireSummary(vehicule.id),
+          SOGManualService.getManualData(vehicule.id)
+        ]);
+        
+        // Filtrer les défauts résolus via le SOG
+        const resolvedDefauts = manualData?.resolvedDefauts || [];
+        if (data.dernierInventaire && resolvedDefauts.length > 0) {
+          data.dernierInventaire.defauts = data.dernierInventaire.defauts.filter(
+            (d: any) => !resolvedDefauts.some((r: any) => r.chemin === d.chemin && r.nom === d.nom)
+          );
+        }
+        
+        // Ajouter les défauts manuels SOG au récap
+        const defautsManuels = manualData?.defautsManuels || [];
+        if (data.dernierInventaire && defautsManuels.length > 0) {
+          const defautsManuelsMapped = defautsManuels.map(d => ({
+            chemin: d.chemin,
+            nom: d.nom,
+            present: true,
+            fonctionne: true,
+            details: d.quantiteAttendue !== undefined
+              ? `[SOG] ${d.quantite !== undefined ? d.quantite : '?'}/${d.quantiteAttendue}${d.details ? ' — ' + d.details : ''}`
+              : `[SOG]${d.details ? ' ' + d.details : ''}`,
+            manuel: true
+          }));
+          data.dernierInventaire.defauts = [...data.dernierInventaire.defauts, ...defautsManuelsMapped];
+        }
+        
+        // Mettre à jour le nombre total de défauts
+        if (data.dernierInventaire) {
+          data.nombreDefauts = data.dernierInventaire.defauts.length;
+        }
+        
+        // Appliquer l'override de l'observation d'inventaire si défini
+        if (data.dernierInventaire && manualData?.observationOverride !== undefined && manualData?.observationOverride !== null) {
+          data.dernierInventaire.observation = manualData.observationOverride || '';
+        }
+        
         setSummary(data);
       } catch (error) {
         console.warn('Firestore pas encore configuré:', error);
-        // Affichage en mode démo si Firestore n'est pas configuré
         console.info('Base de données non configurée - Mode démo');
       } finally {
         setLoading(false);
@@ -116,6 +156,19 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
     };
 
     loadSummary();
+  }, [vehicule.id]);
+
+  // Charger les métadonnées du véhicule pour le contrôle mensuel
+  useEffect(() => {
+    const loadVehiculeMetadata = async () => {
+      try {
+        const metadata = await VehiculeManagementService.getVehiculeMetadata(vehicule.id);
+        setVehiculeMetadata(metadata);
+      } catch (error) {
+        console.warn('Erreur chargement métadonnées véhicule:', error);
+      }
+    };
+    loadVehiculeMetadata();
   }, [vehicule.id]);
 
   const formatDate = (date: Date) => {
@@ -131,25 +184,13 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
   if (loading) {
     return (
       <div className="recap-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
+        <div className="loading-indicator">
+          <div className="loading-dots">
+            <span></span><span></span><span></span>
+          </div>
           <p>Chargement des données...</p>
         </div>
       </div>
-    );
-  }
-
-  // Si le panneau mensuel est ouvert, afficher seulement le contrôle mensuel
-  if (showMensuelPanel) {
-    return (
-      <MensuelPanel
-        vehicule={vehicule}
-        onClose={() => setShowMensuelPanel(false)}
-        onMensuelSaved={() => {
-          setShowMensuelPanel(false);
-          // Optionnel : recharger les données si nécessaire
-        }}
-      />
     );
   }
 
@@ -200,7 +241,8 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
                       title="Cliquer pour voir les détails"
                     >
                       <div className="defaut-icon">
-                        {defaut.present ? (defaut.fonctionne === false ? '🔧' : '📷') : '❌'}
+                        {defaut.details?.includes('Non testé') ? 'ℹ️' :
+                         defaut.present ? (defaut.fonctionne === false ? '🔧' : '📷') : '❌'}
                       </div>
                       <div className="defaut-details">
                         <div className="defaut-path">{defaut.chemin}</div>
@@ -277,13 +319,15 @@ const RecapPanel: React.FC<Props> = ({ vehicule, onStartInventaire, onReturnHome
           </button>
         )}
         
-        <button 
-          className="btn-control-mensuel"
-          onClick={() => setShowMensuelPanel(true)}
-        >
-          <span className="btn-icon">📋</span>
-          <span className="btn-text">Contrôle mensuel</span>
-        </button>
+        {(vehiculeMetadata?.mensuelActif !== false) && onOpenMensuel && (
+          <button 
+            className="btn-control-mensuel"
+            onClick={onOpenMensuel}
+          >
+            <span className="btn-icon">📋</span>
+            <span className="btn-text">Contrôle mensuel</span>
+          </button>
+        )}
         
         <button 
           className="btn-start-inventaire"

@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './config';
 import type { Vehicule } from '../models/inventaire';
 
@@ -78,15 +78,15 @@ export class VehiculeConfigService {
   /**
    * Supprimer la configuration d'un véhicule
    */
-  static async deleteVehiculeConfig(_vehiculeId: string): Promise<void> {
+  static async deleteVehiculeConfig(vehiculeId: string): Promise<boolean> {
     try {
-      // Note: Firestore deleteDoc n'est pas importé pour éviter les suppressions accidentelles
-      // On peut l'ajouter plus tard si nécessaire
-      // Suppression configuration
-      // await deleteDoc(doc(db, VEHICULES_COLLECTION, vehiculeId));
+      const docRef = doc(db, VEHICULES_COLLECTION, vehiculeId);
+      await deleteDoc(docRef);
+      console.log(`✅ Configuration supprimée pour véhicule: ${vehiculeId}`);
+      return true;
     } catch (error) {
       console.error('❌ Erreur suppression configuration:', error);
-      throw error;
+      return false;
     }
   }
 

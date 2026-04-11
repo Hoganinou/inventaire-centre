@@ -38,9 +38,8 @@ export class AdminAuthService {
         };
         
         await setDoc(docRef, adminConfig);
-        console.log('✅ Mot de passe admin initialisé:', defaultPassword);
       } else {
-        console.log('ℹ️ Configuration admin déjà existante');
+        // Configuration admin déjà existante
       }
     } catch (error) {
       console.error('❌ Erreur initialisation mot de passe admin:', error);
@@ -89,7 +88,6 @@ export class AdminAuthService {
       };
       
       await setDoc(docRef, updatedConfig);
-      console.log('✅ Mot de passe admin mis à jour');
       return true;
     } catch (error) {
       console.error('❌ Erreur changement mot de passe:', error);

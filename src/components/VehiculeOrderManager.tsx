@@ -228,8 +228,6 @@ const VehiculeOrderManager: React.FC<Props> = ({ onClose, onOrderUpdated }) => {
       const success = await VehiculeManagementService.updateVehiculeFamilleId(vehiculeId, nouvelleFamilleId);
       
       if (success) {
-        console.log('✅ Famille mise à jour avec succès');
-        
         // Trouver le nom de la famille
         const famille = famillesList.find(f => f.id === nouvelleFamilleId);
         const familleNom = famille?.nom || 'Divers';
@@ -247,8 +245,6 @@ const VehiculeOrderManager: React.FC<Props> = ({ onClose, onOrderUpdated }) => {
         if ((window as any).refreshHomePage) {
           (window as any).refreshHomePage();
         }
-        
-        console.log(`✅ Interface mise à jour: ${vehiculeId} maintenant dans ${familleNom}`);
       } else {
         console.error('❌ Échec de la mise à jour de la famille');
         alert('Erreur lors de la sauvegarde de la famille');
@@ -256,6 +252,33 @@ const VehiculeOrderManager: React.FC<Props> = ({ onClose, onOrderUpdated }) => {
     } catch (error) {
       console.error('❌ Erreur mise à jour famille:', error);
       alert('Erreur lors de la mise à jour de la famille');
+    }
+  };
+
+  const handleMensuelChange = async (vehiculeId: string, mensuelActif: boolean) => {
+    try {
+      const success = await VehiculeManagementService.updateVehiculeMensuelActif(vehiculeId, mensuelActif);
+      
+      if (success) {
+        // Mettre à jour la liste locale
+        const updatedList = vehiculeList.map(item => 
+          item.id === vehiculeId 
+            ? { ...item, metadata: { ...item.metadata, mensuelActif } } 
+            : item
+        );
+        setVehiculeList(updatedList);
+        
+        // Déclencher le refresh de la page d'accueil
+        if ((window as any).refreshHomePage) {
+          (window as any).refreshHomePage();
+        }
+      } else {
+        console.error('❌ Échec de la mise à jour du contrôle mensuel');
+        alert('Erreur lors de la sauvegarde du contrôle mensuel');
+      }
+    } catch (error) {
+      console.error('❌ Erreur mise à jour contrôle mensuel:', error);
+      alert('Erreur lors de la mise à jour du contrôle mensuel');
     }
   };
 
@@ -368,6 +391,15 @@ const VehiculeOrderManager: React.FC<Props> = ({ onClose, onOrderUpdated }) => {
                                 <option key={f.id} value={f.id}>{f.nom}</option>
                               ))}
                             </select>
+                            <label className="mensuel-control">
+                              <input
+                                type="checkbox"
+                                checked={item.metadata.mensuelActif !== false}
+                                onChange={(e) => handleMensuelChange(item.id, e.target.checked)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              📋 Mensuel
+                            </label>
                         </div>
                         <div className="order-controls">
                           <button
@@ -422,6 +454,15 @@ const VehiculeOrderManager: React.FC<Props> = ({ onClose, onOrderUpdated }) => {
                         <option key={f.id} value={f.id}>{f.nom}</option>
                       ))}
                     </select>
+                    <label className="mensuel-control">
+                      <input
+                        type="checkbox"
+                        checked={item.metadata.mensuelActif !== false}
+                        onChange={(e) => handleMensuelChange(item.id, e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      📋 Mensuel
+                    </label>
                   </div>
                   <div className="order-controls">
                     <button
