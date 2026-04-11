@@ -640,13 +640,18 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
 
   // Fonctions pour la copie entre véhicules
   const initiateCopyToVehicle = (sourcePath: number[], sourceIndex: number, type: 'section' | 'materiel') => {
-    const sourceSection = findSectionByPath(sections, sourcePath[0], sourcePath.slice(1));
     let item: Section | Materiel | null = null;
 
-    if (type === 'section' && sourceSection?.sousSections) {
-      item = sourceSection.sousSections[sourceIndex];
-    } else if (type === 'materiel' && sourceSection?.materiels) {
-      item = sourceSection.materiels[sourceIndex];
+    if (sourcePath.length === 0 && type === 'section') {
+      // Section principale : l'item est directement sections[sourceIndex]
+      item = sections[sourceIndex];
+    } else {
+      const sourceSection = findSectionByPath(sections, sourcePath[0], sourcePath.slice(1));
+      if (type === 'section' && sourceSection?.sousSections) {
+        item = sourceSection.sousSections[sourceIndex];
+      } else if (type === 'materiel' && sourceSection?.materiels) {
+        item = sourceSection.materiels[sourceIndex];
+      }
     }
 
     if (item && currentVehicule) {
@@ -771,24 +776,30 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
       const existingIds = getAllIds(destinationSections);
       updateAllIds(itemCopy, existingIds);
 
-      // Ajouter l'élément copié à la section de destination
-      const destinationSection = destinationSections[destinationSectionIndex];
-      if (!destinationSection) {
-        setMessage('❌ Section de destination invalide');
-        setTimeout(() => setMessage(''), 3000);
-        return;
-      }
+      // Ajouter l'élément copié
+      if (destinationSectionIndex === -1 && copyItem.type === 'section') {
+        // Ajouter comme nouvelle section principale
+        destinationSections.push(itemCopy as Section);
+      } else {
+        // Ajouter à la section de destination
+        const destinationSection = destinationSections[destinationSectionIndex];
+        if (!destinationSection) {
+          setMessage('❌ Section de destination invalide');
+          setTimeout(() => setMessage(''), 3000);
+          return;
+        }
 
-      if (copyItem.type === 'section') {
-        if (!destinationSection.sousSections) {
-          destinationSection.sousSections = [];
+        if (copyItem.type === 'section') {
+          if (!destinationSection.sousSections) {
+            destinationSection.sousSections = [];
+          }
+          destinationSection.sousSections.push(itemCopy as Section);
+        } else if (copyItem.type === 'materiel') {
+          if (!destinationSection.materiels) {
+            destinationSection.materiels = [];
+          }
+          destinationSection.materiels.push(itemCopy as Materiel);
         }
-        destinationSection.sousSections.push(itemCopy as Section);
-      } else if (copyItem.type === 'materiel') {
-        if (!destinationSection.materiels) {
-          destinationSection.materiels = [];
-        }
-        destinationSection.materiels.push(itemCopy as Materiel);
       }
 
       // Créer le véhicule de destination mis à jour
@@ -3557,6 +3568,22 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
                 <div className="destination-sections">
                   <label>Ajouter à la section:</label>
                   <div className="section-list">
+                    {copyItem.type === 'section' && (
+                      <div className="section-option">
+                        <button
+                          onClick={() => copyItemToVehicle(selectedDestinationVehicle, -1)}
+                          className="admin-btn admin-btn-success section-choice-btn"
+                          style={{ 
+                            width: '100%', 
+                            textAlign: 'left', 
+                            marginBottom: '0.75rem',
+                            justifyContent: 'flex-start'
+                          }}
+                        >
+                          ➕ Ajouter comme nouvelle section principale
+                        </button>
+                      </div>
+                    )}
                     {destinationVehicleSections.map((section, index) => (
                       <div key={section.id} className="section-option">
                         <button
