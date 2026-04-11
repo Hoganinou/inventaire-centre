@@ -12,7 +12,6 @@ import { VehiculeConfigService } from './firebase/vehicule-config-service'
 import type { Vehicule } from './models/inventaire'
 import { handleVersionCheck } from './utils/version'
 import UpdateNotification from './components/UpdateNotification'
-import { registerServiceWorker } from './utils/cache'
 
 // Fonction utilitaire pour lire les paramètres d'URL
 function getUrlParams() {
@@ -39,9 +38,6 @@ function App() {
       
       // Vérifier les mises à jour de version
       handleVersionCheck();
-      
-      // Enregistrer le service worker pour la gestion du cache
-      registerServiceWorker();
       
       // Charger tous les véhicules
       await loadAllVehicules();

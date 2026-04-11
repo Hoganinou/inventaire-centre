@@ -6,39 +6,25 @@ import App from './App.tsx'
 // Configuration de la langue pour les messages de validation HTML5
 document.documentElement.lang = 'fr';
 
-// Gestion des erreurs de chargement de modules (MIME type)
-window.addEventListener('error', (event) => {
-  if (event.message?.includes('MIME type') || 
-      event.message?.includes('module script') ||
-      event.filename?.includes('/assets/')) {
-    console.warn('[CACHE ERROR] Erreur de MIME type détectée, rechargement forcé...');
-    
-    // Vider le cache et recharger
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then(registration => {
-        if (registration.active) {
-          const channel = new MessageChannel();
-          channel.port1.onmessage = () => {
-            window.location.reload();
-          };
-          registration.active.postMessage({ type: 'FORCE_UPDATE' }, [channel.port2]);
-        }
-      });
-    } else {
-      // Fallback si pas de service worker
-      window.location.reload();
-    }
-  }
-});
+// Les erreurs MIME sont gérées par le nettoyage du service worker
 
-// Enregistrement du service worker amélioré
+// Dé-enregistrer tout service worker existant pour éviter les problèmes de cache
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(r => r.unregister());
+  });
+  // Vider tous les caches
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(n => caches.delete(n)));
+  }
+}
+
+/*  ANCIEN CODE SW DÉSACTIVÉ
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('[SW] Enregistré:', registration);
-        
-        // Vérifier les mises à jour
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
@@ -62,6 +48,7 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+*/
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
