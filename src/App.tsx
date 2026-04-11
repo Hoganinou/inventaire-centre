@@ -10,8 +10,6 @@ import MensuelPanel from './components/MensuelPanel'
 import { vehicules } from './models/vehicules/index'
 import { VehiculeConfigService } from './firebase/vehicule-config-service'
 import type { Vehicule } from './models/inventaire'
-import { handleVersionCheck } from './utils/version'
-import UpdateNotification from './components/UpdateNotification'
 
 // Fonction utilitaire pour lire les paramètres d'URL
 function getUrlParams() {
@@ -35,9 +33,6 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       setIsLoading(true);
-      
-      // Vérifier les mises à jour de version
-      handleVersionCheck();
       
       // Charger tous les véhicules
       await loadAllVehicules();
@@ -237,8 +232,6 @@ function App() {
         </>
       )}
       
-      {/* Composant de notification de mise à jour */}
-      <UpdateNotification />
     </div>
   )
 }
