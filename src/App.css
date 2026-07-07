@@ -2870,6 +2870,53 @@ body {
   border: 1px solid #e0e7ff;
 }
 
+/* Boutons Présent + Testé / Présent + Plombé */
+.control-presence-teste {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-presence-teste {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.4rem;
+  border: 2px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-presence-teste:hover {
+  border-color: #9ca3af;
+  transform: scale(1.02);
+}
+
+.btn-presence-teste.active-ok {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.btn-presence-teste.active-teste {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.btn-presence-teste.active-plombe {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
 .quantity-info {
   display: flex;
   align-items: center;

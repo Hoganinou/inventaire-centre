@@ -261,7 +261,7 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
     
     if (targetSection?.materiels) {
       const materiel = targetSection.materiels[materielIndex];
-      materiel.type = newType as 'checkbox' | 'checkbox-presence' | 'checkbox-fonction' | 'checkbox-ok' | 'radio' | 'quantite' | 'select' | 'photo' | 'niveau' | 'etat' | 'conformite' | 'statut-ternaire' | 'date' | 'texte-libre';
+      materiel.type = newType as 'checkbox' | 'checkbox-presence' | 'checkbox-fonction' | 'checkbox-ok' | 'presence-teste' | 'presence-plombe' | 'radio' | 'quantite' | 'select' | 'photo' | 'niveau' | 'etat' | 'conformite' | 'statut-ternaire' | 'date' | 'texte-libre';
       
       // Réinitialiser les valeurs selon le type
       switch (newType) {
@@ -292,6 +292,13 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
           delete materiel.options;
           materiel.valeur = false; // Par défaut non coché
           delete materiel.estPresent;
+          delete materiel.fonctionne;
+          break;
+        case 'presence-teste':
+        case 'presence-plombe':
+          delete materiel.options;
+          materiel.valeur = ''; // Par défaut non vérifié
+          materiel.estPresent = false;
           delete materiel.fonctionne;
           break;
         case 'niveau':
@@ -1314,6 +1321,8 @@ const AdminPanel: React.FC<Props> = ({ onReturnHome }) => {
           <option value="checkbox-presence">Présence seulement</option>
           <option value="checkbox-fonction">Présence et Fonction</option>
           <option value="checkbox-ok">Case à cocher "OK"</option>
+          <option value="presence-teste">Présent et Testé</option>
+          <option value="presence-plombe">Présent et Plombé</option>
           <option value="radio">Boutons radio</option>
           <option value="quantite">Quantité</option>
           <option value="select">Liste déroulante</option>

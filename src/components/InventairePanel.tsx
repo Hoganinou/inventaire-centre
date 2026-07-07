@@ -227,7 +227,7 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
                 chemin: path.join(' > '),
                 nom: m.nom,
                 present: false,
-                details: 'Non vérifié'
+                details: 'Non présent'
               });
             } else if (m.valeur === 'ok') {
               // Présent mais non testé - on le signale comme info (pas un défaut critique)
@@ -235,10 +235,32 @@ function getDefauts(sections: Section[], parentPath: string[] = []): Defaut[] {
                 chemin: path.join(' > '),
                 nom: m.nom,
                 present: true,
-                details: 'Présent — Non testé'
+                details: 'Non testé'
               });
             }
             // Si valeur === 'teste' -> tout est bon, pas de défaut
+          } else if (m.type === 'presence-plombe') {
+            // Type présence + plombé : 3 états possibles
+            // valeur = 'ok' -> présent (mais non plombé)
+            // valeur = 'plombe' -> présent ET plombé
+            // valeur = '' ou undefined -> non vérifié
+            if (!m.valeur || m.valeur === '') {
+              defauts.push({
+                chemin: path.join(' > '),
+                nom: m.nom,
+                present: false,
+                details: 'Non présent'
+              });
+            } else if (m.valeur === 'ok') {
+              // Présent mais non plombé - on le signale comme info
+              defauts.push({
+                chemin: path.join(' > '),
+                nom: m.nom,
+                present: true,
+                details: 'Non plombé'
+              });
+            }
+            // Si valeur === 'plombe' -> tout est bon, pas de défaut
           } else if (m.type === 'niveau' && (m.valeur === 'Bas' || m.valeur === 'Vide' || !m.valeur)) {
             defauts.push({
               chemin: path.join(' > '),
@@ -510,6 +532,11 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         if (materiel.type === 'presence-teste') {
           materiel.valeur = valeur; // 'ok', 'teste' ou ''
           materiel.estPresent = valeur === 'ok' || valeur === 'teste';
+        }
+        // Pour type presence-plombe, gérer les 3 états
+        if (materiel.type === 'presence-plombe') {
+          materiel.valeur = valeur; // 'ok', 'plombe' ou ''
+          materiel.estPresent = valeur === 'ok' || valeur === 'plombe';
         }
       }
       return copy;
@@ -974,6 +1001,7 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         if (m.type === 'select') return (m.valeur ?? '') !== '';
         if (m.type === 'checkbox-ok') return m.valeur === true;
         if (m.type === 'presence-teste') return m.valeur === 'ok' || m.valeur === 'teste';
+        if (m.type === 'presence-plombe') return m.valeur === 'ok' || m.valeur === 'plombe';
         if (m.type === 'niveau') return m.valeur && m.valeur !== 'Vide';
         if (m.type === 'etat' || m.type === 'statut-ternaire') return m.valeur && m.valeur !== 'Mauvais';
         if (m.type === 'conformite') return m.valeur === 'Conforme';
@@ -1058,6 +1086,10 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
       if (m.type === 'presence-teste') {
         return !m.valeur || m.valeur === '' || m.valeur === 'ok';
       }
+      // Pour presence-plombe : défaut si non vérifié, "ok" compte comme info (non plombé)
+      if (m.type === 'presence-plombe') {
+        return !m.valeur || m.valeur === '' || m.valeur === 'ok';
+      }
       // Pour les matériels qui n'ont QUE "fonctionne"
       if (m.hasOwnProperty('fonctionne') && !m.hasOwnProperty('estPresent')) {
         return m.fonctionne === false;
@@ -1093,6 +1125,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         completed = typeof m.valeur === 'boolean';
       } else if (m.type === 'presence-teste') {
         completed = m.valeur === 'ok' || m.valeur === 'teste';
+      } else if (m.type === 'presence-plombe') {
+        completed = m.valeur === 'ok' || m.valeur === 'plombe';
       } else if (m.type === 'niveau') {
         completed = (m.valeur ?? '') !== '';
       } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
@@ -1133,6 +1167,8 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
         return typeof m.valeur === 'boolean';
       } else if (m.type === 'presence-teste') {
         return m.valeur === 'ok' || m.valeur === 'teste';
+      } else if (m.type === 'presence-plombe') {
+        return m.valeur === 'ok' || m.valeur === 'plombe';
       } else if (m.type === 'niveau') {
         return (m.valeur ?? '') !== '';
       } else if (m.type === 'etat' || m.type === 'statut-ternaire') {
@@ -1630,6 +1666,28 @@ const InventairePanel: React.FC<Props> = ({ vehicule, onInventaireComplete, onRe
                               title="Présent ET testé en fonctionnement"
                             >
                               ⚡ Testé
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Présence + Plombé : 2 boutons OK / Plombé */}
+                        {materiel.type === 'presence-plombe' && (
+                          <div className="control-presence-teste">
+                            <button
+                              type="button"
+                              className={`btn-presence-teste ${materiel.valeur === 'ok' ? 'active-ok' : ''}`}
+                              onClick={() => path && updateMaterielValeur(path, item.materielIdx, materiel.valeur === 'ok' ? '' : 'ok')}
+                              title="Présent (non plombé)"
+                            >
+                              ✓ OK
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn-presence-teste ${materiel.valeur === 'plombe' ? 'active-plombe' : ''}`}
+                              onClick={() => path && updateMaterielValeur(path, item.materielIdx, materiel.valeur === 'plombe' ? '' : 'plombe')}
+                              title="Présent ET plombé"
+                            >
+                              🔒 Plombé
                             </button>
                           </div>
                         )}

@@ -161,6 +161,7 @@ const VehiculeDetailModal: React.FC<VehiculeDetailModalProps> = ({
         case 'quantite': return `Qté: ${materiel.valeur ?? '?'}`;
         case 'checkbox': case 'checkbox-presence': case 'checkbox-fonction': case 'checkbox-ok': return '☑';
         case 'presence-teste': return '☑⚡';
+        case 'presence-plombe': return '☑🔒';
         case 'radio': return 'RAS / Défaut';
         case 'niveau': return '🔋 Niveau';
         case 'etat': return '📊 État';
